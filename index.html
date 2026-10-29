@@ -3,144 +3,229 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sistema de Controle de Estoque e Pedidos</title>
-
-  <!-- Tailwind CSS -->
+  <title>Solicitação de Materiais - CNS Limpeza</title>
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-
-  <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
 </head>
-<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
+<body class="bg-slate-100 min-h-screen text-slate-800">
 
-  <!-- Topbar / Cabeçalho -->
-  <header class="bg-blue-900 text-white shadow-md">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap justify-between items-center gap-3">
-      <div class="flex items-center gap-3">
-        <i data-lucide="boxes" class="w-7 h-7 text-blue-300"></i>
-        <div>
-          <h1 class="text-xl font-bold tracking-tight">Controle de Estoque & Pedidos</h1>
-          <p class="text-xs text-blue-200">Limpeza, Consumo e Equipamentos</p>
-        </div>
+  <!-- Topo -->
+  <header class="bg-blue-900 text-white shadow">
+    <div class="max-w-5xl mx-auto px-4 py-4 flex justify-between items-center">
+      <div>
+        <h1 class="text-xl font-bold">Solicitação de Materiais</h1>
+        <p class="text-xs text-blue-200">Produtos de Limpeza, Consumo e Equipamentos</p>
       </div>
-
-      <!-- Alternador de Visão (Master / Usuário da Igreja) -->
-      <div class="flex items-center gap-3 bg-blue-950/60 px-3 py-1.5 rounded-lg border border-blue-800">
-        <span class="text-xs font-medium text-blue-200">Visão atual:</span>
-        <button id="btn-toggle-role" class="px-2.5 py-1 text-xs font-semibold rounded bg-blue-600 text-white hover:bg-blue-500 transition shadow-sm">
-          Perfil: Usuário Master
-        </button>
-      </div>
+      <a href="master.html" class="bg-blue-800 hover:bg-blue-700 text-xs px-3 py-2 rounded font-semibold border border-blue-600">
+        Acesso Master (Admin)
+      </a>
     </div>
   </header>
 
-  <!-- Menu de Navegação / Abas -->
-  <nav class="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-10">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex overflow-x-auto space-x-1 py-2" id="nav-tabs">
-      <!-- Abas geradas ou controladas por script -->
-      <button class="nav-tab active-tab px-3 py-2 text-sm font-semibold rounded-md flex items-center gap-2 bg-blue-50 text-blue-700" data-tab="tab-estoque">
-        <i data-lucide="package" class="w-4 h-4"></i> Controle Estoque
-      </button>
-      <button class="nav-tab px-3 py-2 text-sm font-medium rounded-md flex items-center gap-2 text-slate-600 hover:text-blue-700 hover:bg-slate-50" data-tab="tab-pedidos">
-        <i data-lucide="shopping-cart" class="w-4 h-4"></i> Solicitar / Fazer Pedidos
-      </button>
-      <button class="nav-tab px-3 py-2 text-sm font-medium rounded-md flex items-center gap-2 text-slate-600 hover:text-blue-700 hover:bg-slate-50" data-tab="tab-gerenciar-pedidos">
-        <i data-lucide="clipboard-list" class="w-4 h-4"></i> Gestão de Pedidos
-      </button>
-      <button class="nav-tab px-3 py-2 text-sm font-medium rounded-md flex items-center gap-2 text-slate-600 hover:text-blue-700 hover:bg-slate-50" data-tab="tab-saidas">
-        <i data-lucide="arrow-up-right" class="w-4 h-4"></i> Saída de Produtos
-      </button>
-      <button class="nav-tab px-3 py-2 text-sm font-medium rounded-md flex items-center gap-2 text-slate-600 hover:text-blue-700 hover:bg-slate-50" data-tab="tab-entradas">
-        <i data-lucide="arrow-down-left" class="w-4 h-4"></i> Estoque por Inclusão
-      </button>
-      <button class="nav-tab px-3 py-2 text-sm font-medium rounded-md flex items-center gap-2 text-slate-600 hover:text-blue-700 hover:bg-slate-50" data-tab="tab-igrejas">
-        <i data-lucide="church" class="w-4 h-4"></i> Cadastrar Igreja
-      </button>
-      <button class="nav-tab px-3 py-2 text-sm font-medium rounded-md flex items-center gap-2 text-slate-600 hover:text-blue-700 hover:bg-slate-50" data-tab="tab-produtos">
-        <i data-lucide="plus-circle" class="w-4 h-4"></i> Cadastrar Produto
-      </button>
-    </div>
-  </nav>
-
-  <!-- Conteúdo Principal -->
-  <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full">
-
-    <!-- 1. ABA: CONTROLE DE ESTOQUE -->
-    <section id="tab-estoque" class="tab-content block space-y-4">
-      <div class="flex flex-col md:flex-row gap-6">
-        <!-- Tabela Saldo -->
-        <div class="flex-1 bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
-          <div class="flex justify-between items-center mb-4">
-            <h2 class="text-base font-bold text-slate-700">Saldo Atual em Estoque</h2>
-            <button class="px-3 py-1.5 text-xs font-semibold bg-slate-700 text-white rounded hover:bg-slate-800 flex items-center gap-1.5">
-              <i data-lucide="file-text" class="w-4 h-4"></i> Gerar PDF
-            </button>
+  <main class="max-w-5xl mx-auto px-4 py-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+    
+    <!-- Coluna Esquerda: Formulário de Novo Pedido -->
+    <div class="md:col-span-2 space-y-6">
+      <div class="bg-white p-6 rounded-lg shadow-sm border">
+        <h2 class="text-lg font-bold mb-4 text-slate-700 border-b pb-2">1. Dados do Solicitante</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Escolha a Igreja</label>
+            <select id="select-igreja" class="w-full border rounded px-3 py-2 text-sm bg-white"></select>
           </div>
-          <div class="overflow-x-auto border rounded-md">
-            <table class="w-full text-left text-sm">
-              <thead class="bg-slate-50 border-b text-slate-600 font-semibold uppercase text-xs">
-                <tr>
-                  <th class="p-3">ID</th>
-                  <th class="p-3">Produto</th>
-                  <th class="p-3">Categoria</th>
-                  <th class="p-3 text-right">Quantidade</th>
-                  <th class="p-3 text-right">Valor Total</th>
-                </tr>
-              </thead>
-              <tbody id="lista-estoque-geral" class="divide-y divide-slate-100">
-                <!-- Linhas preenchidas via JavaScript -->
-              </tbody>
-            </table>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Seu Nome / Responsável</label>
+            <input type="text" id="input-responsavel" placeholder="Ex: João Silva" class="w-full border rounded px-3 py-2 text-sm" />
           </div>
         </div>
 
-        <!-- Formulário Lateral de Inclusão Rápida -->
-        <div class="w-full md:w-80 bg-white p-5 rounded-lg border border-slate-200 shadow-sm self-start space-y-3">
-          <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wide">Entrada Rápida</h3>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Escolha o Produto</label>
-            <select id="estoque-select-produto" class="w-full border rounded-md px-3 py-1.5 text-sm"></select>
+        <h2 class="text-lg font-bold mt-6 mb-4 text-slate-700 border-b pb-2">2. Adicionar Produtos ao Pedido</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Produto</label>
+            <select id="select-produto" class="w-full border rounded px-3 py-2 text-sm bg-white"></select>
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Preço Unitário (R$)</label>
-            <input type="number" step="0.01" id="estoque-preco" class="w-full border rounded-md px-3 py-1.5 text-sm" placeholder="0,00" />
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Quantidade</label>
+            <input type="number" id="input-qtd" min="1" value="1" class="w-full border rounded px-3 py-2 text-sm" />
           </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Quantidade</label>
-            <input type="number" id="estoque-qtd" class="w-full border rounded-md px-3 py-1.5 text-sm" placeholder="0" />
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Data da Entrada</label>
-            <input type="date" id="estoque-data" class="w-full border rounded-md px-3 py-1.5 text-sm" />
-          </div>
-          <button class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-md text-sm mt-2 transition">
-            Cadastrar Entrada
+          <button onclick="adicionarAoCarrinho()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded text-sm">
+            + Incluir
           </button>
         </div>
-      </div>
-    </section>
 
-    <!-- 2. ABA: SOLICITAR / FAZER PEDIDOS (VISÃO DOS USUÁRIOS) -->
-    <section id="tab-pedidos" class="tab-content hidden space-y-6">
-      <div class="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
-        <h2 class="text-lg font-bold text-slate-800 mb-4">Novo Pedido de Materiais</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Igreja / Congregação</label>
-            <select id="pedido-select-igreja" class="w-full border rounded-md px-3 py-2 text-sm"></select>
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Responsável pelo Pedido</label>
-            <input type="text" id="pedido-responsavel" class="w-full border rounded-md px-3 py-2 text-sm" placeholder="Nome do solicitante" />
-          </div>
+        <!-- Lista de itens incluídos -->
+        <div class="mt-6">
+          <h3 class="text-xs font-bold uppercase text-slate-500 mb-2">Itens do Pedido Atual</h3>
+          <table class="w-full text-sm border rounded overflow-hidden">
+            <thead class="bg-slate-50 border-b text-left text-xs uppercase text-slate-600">
+              <tr>
+                <th class="p-2">Produto</th>
+                <th class="p-2 text-center">Qtd</th>
+                <th class="p-2 text-right">Ação</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-carrinho" class="divide-y">
+              <tr><td colspan="3" class="p-4 text-center text-slate-400">Nenhum item adicionado ainda.</td></tr>
+            </tbody>
+          </table>
         </div>
 
-        <!-- Seletor de Itens -->
-        <div class="border-t pt-4">
-          <h3 class="text-sm font-semibold text-slate-700 mb-3">Adicionar Produtos ao Carrinho</h3>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
-            <div class="sm:col-span-2">
-              <select id="pedido-item-produto" class="w-full border rounded-md px-3 py-
+        <button onclick="enviarPedido()" class="mt-6 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded shadow">
+          Enviar Pedido para o Controle Master
+        </button>
+      </div>
+    </div>
+
+    <!-- Coluna Direita: Acompanhamento de Pedidos Recentes -->
+    <div class="bg-white p-6 rounded-lg shadow-sm border self-start">
+      <h2 class="text-base font-bold mb-4 text-slate-700 border-b pb-2">Últimos Pedidos Enviados</h2>
+      <div id="lista-pedidos-recentes" class="space-y-3 text-sm">
+        Carregando...
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    let carrinho = [];
+    let listaProdutos = [];
+
+    async function carregarDadosIniciais() {
+      // Carrega Igrejas
+      const { data: igrejas } = await supabaseClient.from('igrejas').select('*').order('nome');
+      const selIgreja = document.getElementById('select-igreja');
+      selIgreja.innerHTML = '<option value="">Selecione a Igreja...</option>';
+      if (igrejas) {
+        igrejas.forEach(ig => {
+          selIgreja.innerHTML += `<option value="${ig.id}">${ig.nome}</option>`;
+        });
+      }
+
+      // Carrega Produtos
+      const { data: produtos } = await supabaseClient.from('produtos').select('*').order('nome');
+      listaProdutos = produtos || [];
+      const selProd = document.getElementById('select-produto');
+      selProd.innerHTML = '<option value="">Selecione o Produto...</option>';
+      listaProdutos.forEach(p => {
+        selProd.innerHTML += `<option value="${p.id}">${p.nome} (${p.categoria || 'Geral'})</option>`;
+      });
+
+      carregarPedidosRecentes();
+    }
+
+    function adicionarAoCarrinho() {
+      const prodId = document.getElementById('select-produto').value;
+      const qtd = parseInt(document.getElementById('input-qtd').value);
+      if (!prodId || qtd <= 0) return alert('Escolha um produto e uma quantidade válida.');
+
+      const prod = listaProdutos.find(p => p.id == prodId);
+      const existente = carrinho.find(item => item.produto_id == prodId);
+      if (existente) {
+        existente.quantidade += qtd;
+      } else {
+        carrinho.push({
+          produto_id: prod.id,
+          nome: prod.nome,
+          preco_unitario: prod.preco_padrao || 0,
+          quantidade: qtd
+        });
+      }
+      renderizarCarrinho();
+    }
+
+    function removerDoCarrinho(index) {
+      carrinho.splice(index, 1);
+      renderizarCarrinho();
+    }
+
+    function renderizarCarrinho() {
+      const tbody = document.getElementById('tabela-carrinho');
+      if (carrinho.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-slate-400">Nenhum item adicionado ainda.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = carrinho.map((item, idx) => `
+        <tr>
+          <td class="p-2 font-medium">${item.nome}</td>
+          <td class="p-2 text-center">${item.quantidade}</td>
+          <td class="p-2 text-right">
+            <button onclick="removerDoCarrinho(${idx})" class="text-red-600 text-xs font-bold hover:underline">Remover</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function enviarPedido() {
+      const igreja_id = document.getElementById('select-igreja').value;
+      const responsavel = document.getElementById('input-responsavel').value.trim();
+
+      if (!igreja_id) return alert('Selecione a Igreja!');
+      if (!responsavel) return alert('Informe o seu nome!');
+      if (carrinho.length === 0) return alert('Adicione pelo menos 1 produto ao pedido!');
+
+      // 1. Cria o Pedido
+      const { data: novoPedido, error: erroPedido } = await supabaseClient
+        .from('pedidos')
+        .insert([{ igreja_id, responsavel, status: 'pendente' }])
+        .select()
+        .single();
+
+      if (erroPedido) return alert('Erro ao criar pedido: ' + erroPedido.message);
+
+      // 2. Insere os itens do pedido
+      const itensParaInserir = carrinho.map(item => ({
+        pedido_id: novoPedido.id,
+        produto_id: item.produto_id,
+        quantidade: item.quantidade,
+        preco_unitario: item.preco_unitario
+      }));
+
+      const { error: erroItens } = await supabaseClient.from('pedido_itens').insert(itensParaInserir);
+      if (erroItens) return alert('Erro ao salvar itens: ' + erroItens.message);
+
+      alert('Pedido enviado com sucesso! Aguarde a aprovação.');
+      carrinho = [];
+      document.getElementById('input-responsavel').value = '';
+      renderizarCarrinho();
+      carregarPedidosRecentes();
+    }
+
+    async function carregarPedidosRecentes() {
+      const { data: pedidos } = await supabaseClient
+        .from('pedidos')
+        .select('id, responsavel, status, data_pedido, igrejas(nome)')
+        .order('id', { ascending: false })
+        .limit(8);
+
+      const div = document.getElementById('lista-pedidos-recentes');
+      if (!pedidos || pedidos.length === 0) {
+        div.innerHTML = '<p class="text-slate-400">Nenhum pedido registrado.</p>';
+        return;
+      }
+
+      const coresStatus = {
+        pendente: 'bg-amber-100 text-amber-800',
+        aprovado: 'bg-blue-100 text-blue-800',
+        entregue: 'bg-emerald-100 text-emerald-800',
+        rejeitado: 'bg-red-100 text-red-800'
+      };
+
+      div.innerHTML = pedidos.map(p => `
+        <div class="border rounded p-3 flex justify-between items-center">
+          <div>
+            <p class="font-bold text-slate-700">#${p.id} - ${p.igrejas?.nome || 'Igreja'}</p>
+            <p class="text-xs text-slate-500">Solicitante: ${p.responsavel || '-'}</p>
+          </div>
+          <span class="px-2 py-1 rounded text-xs font-bold uppercase ${coresStatus[p.status] || 'bg-slate-100'}">
+            ${p.status}
+          </span>
+        </div>
+      `).join('');
+    }
+
+    carregarDadosIniciais();
+  </script>
+</body>
+</html>
