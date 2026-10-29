@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sistema de Controle de Estoque e Pedidos</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
+
+  <!-- Topbar / Cabeçalho -->
+  <header class="bg-blue-900 text-white shadow-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap justify-between items-center gap-3">
+      <div class="flex items-center gap-3">
+        <i data-lucide="boxes" class="w-7 h-7 text-blue-300"></i>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight">Controle de Estoque & Pedidos</h1>
+          <p class="text-xs text-blue-200">Limpeza, Consumo e Equipamentos</p>
+        </div>
+      </div>
+
+      <!-- Alternador de Visão (Master / Usuário da Igreja) -->
+      <div class="flex items-center gap-3 bg-blue-950/60 px-3 py-1.5 rounded-lg border border-blue-800">
+        <span class="text-xs font-medium text-blue-200">Visão atual:</span>
+        <button id="btn-toggle-role" class="px-2.5 py-1 text-xs font-semibold rounded bg-blue-600 text-white hover:bg-blue-500 transition shadow-sm">
+          Perfil: Usuário Master
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Menu de Navegação / Abas -->
+  <nav class="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex overflow-x-auto space-x-1 py-2" id="nav-tabs">
+      <!-- Abas geradas ou controladas por script -->
+      <button class="nav-tab active-tab px-3 py-2 text-sm font-semibold rounded-md flex items-center gap-2 bg-blue-50 text-blue-700" data-tab="tab-estoque">
+        <i data-lucide="package" class="w-4 h-4"></i> Controle Estoque
+      </button>
+      <button class="nav-tab px-3 py-2 text-sm font-medium rounded-md flex items-center gap-2 text-slate-600 hover:text-blue-700 hover:bg-slate-50" data-tab="tab-pedidos">
+        <i data-lucide="shopping-cart" class="w-4 h-4"></i> Solicitar / Fazer Pedidos
+      </button>
+      <button class="nav-tab px-3 py-2 text-sm font-medium rounded-md flex items-center gap-2 text-slate-600 hover:text-blue-700 hover:bg-slate-50" data-tab="tab-gerenciar-pedidos">
+        <i data-lucide="clipboard-list" class="w-4 h-4"></i> Gestão de Pedidos
+      </button>
+      <button class="nav-tab px-3 py-2 text-sm font-medium rounded-md flex items-center gap-2 text-slate-600 hover:text-blue-700 hover:bg-slate-50" data-tab="tab-saidas">
+        <i data-lucide="arrow-up-right" class="w-4 h-4"></i> Saída de Produtos
+      </button>
+      <button class="nav-tab px-3 py-2 text-sm font-medium rounded-md flex items-center gap-2 text-slate-600 hover:text-blue-700 hover:bg-slate-50" data-tab="tab-entradas">
+        <i data-lucide="arrow-down-left" class="w-4 h-4"></i> Estoque por Inclusão
+      </button>
+      <button class="nav-tab px-3 py-2 text-sm font-medium rounded-md flex items-center gap-2 text-slate-600 hover:text-blue-700 hover:bg-slate-50" data-tab="tab-igrejas">
+        <i data-lucide="church" class="w-4 h-4"></i> Cadastrar Igreja
+      </button>
+      <button class="nav-tab px-3 py-2 text-sm font-medium rounded-md flex items-center gap-2 text-slate-600 hover:text-blue-700 hover:bg-slate-50" data-tab="tab-produtos">
+        <i data-lucide="plus-circle" class="w-4 h-4"></i> Cadastrar Produto
+      </button>
+    </div>
+  </nav>
+
+  <!-- Conteúdo Principal -->
+  <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full">
+
+    <!-- 1. ABA: CONTROLE DE ESTOQUE -->
+    <section id="tab-estoque" class="tab-content block space-y-4">
+      <div class="flex flex-col md:flex-row gap-6">
+        <!-- Tabela Saldo -->
+        <div class="flex-1 bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-base font-bold text-slate-700">Saldo Atual em Estoque</h2>
+            <button class="px-3 py-1.5 text-xs font-semibold bg-slate-700 text-white rounded hover:bg-slate-800 flex items-center gap-1.5">
+              <i data-lucide="file-text" class="w-4 h-4"></i> Gerar PDF
+            </button>
+          </div>
+          <div class="overflow-x-auto border rounded-md">
+            <table class="w-full text-left text-sm">
+              <thead class="bg-slate-50 border-b text-slate-600 font-semibold uppercase text-xs">
+                <tr>
+                  <th class="p-3">ID</th>
+                  <th class="p-3">Produto</th>
+                  <th class="p-3">Categoria</th>
+                  <th class="p-3 text-right">Quantidade</th>
+                  <th class="p-3 text-right">Valor Total</th>
+                </tr>
+              </thead>
+              <tbody id="lista-estoque-geral" class="divide-y divide-slate-100">
+                <!-- Linhas preenchidas via JavaScript -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Formulário Lateral de Inclusão Rápida -->
+        <div class="w-full md:w-80 bg-white p-5 rounded-lg border border-slate-200 shadow-sm self-start space-y-3">
+          <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wide">Entrada Rápida</h3>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Escolha o Produto</label>
+            <select id="estoque-select-produto" class="w-full border rounded-md px-3 py-1.5 text-sm"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Preço Unitário (R$)</label>
+            <input type="number" step="0.01" id="estoque-preco" class="w-full border rounded-md px-3 py-1.5 text-sm" placeholder="0,00" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Quantidade</label>
+            <input type="number" id="estoque-qtd" class="w-full border rounded-md px-3 py-1.5 text-sm" placeholder="0" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Data da Entrada</label>
+            <input type="date" id="estoque-data" class="w-full border rounded-md px-3 py-1.5 text-sm" />
+          </div>
+          <button class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-md text-sm mt-2 transition">
+            Cadastrar Entrada
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. ABA: SOLICITAR / FAZER PEDIDOS (VISÃO DOS USUÁRIOS) -->
+    <section id="tab-pedidos" class="tab-content hidden space-y-6">
+      <div class="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
+        <h2 class="text-lg font-bold text-slate-800 mb-4">Novo Pedido de Materiais</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Igreja / Congregação</label>
+            <select id="pedido-select-igreja" class="w-full border rounded-md px-3 py-2 text-sm"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Responsável pelo Pedido</label>
+            <input type="text" id="pedido-responsavel" class="w-full border rounded-md px-3 py-2 text-sm" placeholder="Nome do solicitante" />
+          </div>
+        </div>
+
+        <!-- Seletor de Itens -->
+        <div class="border-t pt-4">
+          <h3 class="text-sm font-semibold text-slate-700 mb-3">Adicionar Produtos ao Carrinho</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+            <div class="sm:col-span-2">
+              <select id="pedido-item-produto" class="w-full border rounded-md px-3 py-2 text-sm"></select>
+            </div>
+            <div class="flex gap-2">
+              <input type="number" id="pedido-item-qtd" min="1" value="1" class="w-24 border rounded-md px-3 py-2 text-sm" />
+              <button id="btn-add-item-pedido" class="flex-1 bg-slate-800 text-white rounded-md text-sm font-medium hover:bg-slate-900 transition">
+                Adicionar
+              </button>
+            </div>
+          </div>
+
+          <!-- Lista do Pedido em Andamento -->
+          <div class="overflow-x-auto border rounded-md mt-4">
+            <table class="w-full text-left text-sm">
+              <thead class="bg-slate-50 border-b text-xs text-slate-600 font-semibold uppercase">
+                <tr>
+                  <th class="p-3">Item</th>
+                  <th class="p-3 text-right">Qtd</th>
+                  <th class="p-3 text-right">Ação</th>
+                </tr>
+              </thead>
+              <tbody id="carrinho-itens-tbody" class="divide-y divide-slate-100">
+                <!-- Itens adicionados -->
+              </tbody>
+            </table>
+          </div>
+
+          <div class="mt-4 flex justify-end">
+            <button id="btn-enviar-pedido" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-5 py-2.5 rounded-md text-sm transition">
+              Enviar Pedido para Aprovação
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. ABA: GESTÃO DE PEDIDOS (MASTER) -->
+    <section id="tab-gerenciar-pedidos" class="tab-content hidden space-y-4">
+      <div class="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
+        <h2 class="text-base font-bold text-slate-800 mb-3">Pedidos Recebidos</h2>
+        <div class="overflow-x-auto border rounded-md">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-slate-50 border-b text-xs text-slate-600 font-semibold uppercase">
+              <tr>
+                <th class="p-3">ID</th>
+                <th class="p-3">Igreja</th>
+                <th class="p-3">Data</th>
+                <th class="p-3">Itens</th>
+                <th class="p-3">Status</th>
+                <th class="p-3 text-center">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-pedidos-master" class="divide-y divide-slate-100">
+              <!-- Pedidos dinâmicos -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. ABA: SAÍDA DE PRODUTOS -->
+    <section id="tab-saidas" class="tab-content hidden space-y-4">
+      <div class="flex flex-col md:flex-row gap-6">
+        <div class="flex-1 bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-base font-bold text-slate-700">Histórico de Saídas</h2>
+            <div class="flex gap-2">
+              <button class="px-3 py-1.5 text-xs font-semibold bg-slate-100 border text-slate-700 rounded hover:bg-slate-200">Consulta Saídas</button>
+              <button class="px-3 py-1.5 text-xs font-semibold bg-slate-700 text-white rounded hover:bg-slate-800">Gerar PDF</button>
+            </div>
+          </div>
+          <div class="overflow-x-auto border rounded-md">
+            <table class="w-full text-left text-sm">
+              <thead class="bg-slate-50 border-b text-xs text-slate-600 uppercase">
+                <tr>
+                  <th class="p-3">ID</th>
+                  <th class="p-3">Igreja</th>
+                  <th class="p-3">Produto</th>
+                  <th class="p-3 text-right">Preço</th>
+                  <th class="p-3 text-right">Qtd</th>
+                  <th class="p-3 text-right">Total</th>
+                  <th class="p-3">Data</th>
+                </tr>
+              </thead>
+              <tbody id="tabela-saidas-tbody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Form Lateral de Saída Manual -->
+        <div class="w-full md:w-80 bg-white p-5 rounded-lg border border-slate-200 shadow-sm space-y-3">
+          <h3 class="text-sm font-bold text-slate-700 uppercase">Lançar Saída Direta</h3>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Escolha a Igreja</label>
+            <select id="saida-select-igreja" class="w-full border rounded-md px-3 py-1.5 text-sm"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Escolha o Produto</label>
+            <select id="saida-select-produto" class="w-full border rounded-md px-3 py-1.5 text-sm"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Quantidade</label>
+            <input type="number" id="saida-qtd" class="w-full border rounded-md px-3 py-1.5 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Data da Saída</label>
+            <input type="date" id="saida-data" class="w-full border rounded-md px-3 py-1.5 text-sm" />
+          </div>
+          <div class="pt-2 flex flex-col gap-2">
+            <button class="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2 rounded-md text-sm transition">
+              Cadastrar Saída
+            </button>
+            <button class="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium py-1.5 rounded-md text-xs transition">
+              Deletar Registro
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. ABA: ESTOQUE POR INCLUSÃO -->
+    <section id="tab-entradas" class="tab-content hidden space-y-4">
+      <div class="flex flex-col md:flex-row gap-6">
+        <div class="flex-1 bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-base font-bold text-slate-700">Entradas / Compras Registradas</h2>
+            <button class="px-3 py-1.5 text-xs font-semibold bg-slate-100 border text-slate-700 rounded hover:bg-slate-200">Lista Completa</button>
+          </div>
+          <div class="overflow-x-auto border rounded-md">
+            <table class="w-full text-left text-sm">
+              <thead class="bg-slate-50 border-b text-xs text-slate-600 uppercase">
+                <tr>
+                  <th class="p-3">ID</th>
+                  <th class="p-3">Produto</th>
+                  <th class="p-3 text-right">Preço</th>
+                  <th class="p-3 text-right">Quantidade</th>
+                  <th class="p-3">Data Entrada</th>
+                </tr>
+              </thead>
+              <tbody id="tabela-inclusoes-tbody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="w-full md:w-80 bg-white p-5 rounded-lg border border-slate-200 shadow-sm space-y-3">
+          <h3 class="text-sm font-bold text-slate-700 uppercase">Consultar / Deletar</h3>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Escolha o Produto</label>
+            <select id="consulta-select-produto" class="w-full border rounded-md px-3 py-1.5 text-sm"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Data</label>
+            <input type="date" id="consulta-data" class="w-full border rounded-md px-3 py-1.5 text-sm" />
+          </div>
+          <div class="pt-2 flex flex-col gap-2">
+            <button class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-md text-sm">Consultar</button>
+            <button class="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2 rounded-md text-sm">Deletar Evento</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. ABA: CADASTRAR IGREJA -->
+    <section id="tab-igrejas" class="tab-content hidden space-y-4">
+      <div class="max-w-xl mx-auto bg-white p-6 rounded-lg border border-slate-200 shadow-sm space-y-4">
+        <h2 class="text-base font-bold text-slate-800">Cadastro de Igrejas / Congregações</h2>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Nome da Igreja</label>
+            <input type="text" id="input-igreja-nome" class="w-full border rounded-md px-3 py-2 text-sm" placeholder="Ex: Congregação Central" />
+          </div>
+          <div class="flex gap-2">
+            <button class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-md text-sm">Cadastrar Igreja</button>
+            <button class="bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded-md text-sm">Deletar</button>
+          </div>
+        </div>
+        <div class="border-t pt-4">
+          <h3 class="text-xs font-semibold text-slate-600 mb-2 uppercase">Igrejas Cadastradas</h3>
+          <ul id="lista-igrejas" class="border rounded-md divide-y divide-slate-100 max-h-56 overflow-y-auto text-sm">
+            <!-- Igrejas cadastradas -->
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. ABA: CADASTRAR PRODUTO -->
+    <section id="tab-produtos" class="tab-content hidden space-y-4">
+      <div class="max-w-xl mx-auto bg-white p-6 rounded-lg border border-slate-200 shadow-sm space-y-4">
+        <h2 class="text-base font-bold text-slate-800">Cadastro de Produtos / Materiais</h2>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Produto a ser cadastrado</label>
+            <input type="text" id="input-produto-nome" class="w-full border rounded-md px-3 py-2 text-sm" placeholder="Ex: Desinfetante 5L" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Categoria</label>
+            <select id="input-produto-categoria" class="w-full border rounded-md px-3 py-2 text-sm">
+              <option value="Limpeza">Material de Limpeza</option>
+              <option value="Consumo">Material de Consumo</option>
+              <option value="Equipamento">Equipamento</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Preço Padrão de Referência (R$)</label>
+            <input type="number" step="0.01" id="input-produto-preco" class="w-full border rounded-md px-3 py-2 text-sm" placeholder="0,00" />
+          </div>
+          <div class="flex gap-2">
+            <button class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-md text-sm">Cadastrar Produto</button>
+            <button class="bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded-md text-sm">Deletar</button>
+          </div>
+        </div>
+        <div class="border-t pt-4">
+          <h3 class="text-xs font-semibold text-slate-600 mb-2 uppercase">Catálogo de Produtos</h3>
+          <ul id="lista-produtos" class="border rounded-md divide-y divide-slate-100 max-h-56 overflow-y-auto text-sm">
+            <!-- Produtos cadastrados -->
+          </ul>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Rodapé -->
+  <footer class="bg-white border-t py-4 text-center text-xs text-slate-500">
+    Sistema de Gestão e Pedidos de Estoque &copy; 2026
+  </footer>
+
+  <!-- Script com navegação de abas e inicialização de ícones -->
+  <script>
+    // Inicialização dos ícones Lucide
+    lucide.createIcons();
+
+    // Sistema simples de troca de abas
+    const tabs = document.querySelectorAll('.nav-tab');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => {
+          t.classList.remove('bg-blue-50', 'text-blue-700', 'font-semibold');
+          t.classList.add('text-slate-600');
+        });
+        tabContents.forEach(content => content.classList.add('hidden'));
+
+        tab.classList.add('bg-blue-50', 'text-blue-700', 'font-semibold');
+        tab.classList.remove('text-slate-600');
+
+        const targetTabId = tab.getAttribute('data-tab');
+        const targetContent = document.getElementById(targetTabId);
+        if (targetContent) {
+          targetContent.classList.remove('hidden');
+        }
+      });
+    });
+  </script>
+</body>
+</html>
