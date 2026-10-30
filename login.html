@@ -40,42 +40,50 @@
   </div>
 
   <script>
-    async function fazerLogin() {
-      const username = document.getElementById('login-user').value.trim().toLowerCase();
-      const senha = document.getElementById('login-senha').value.trim();
+  async function fazerLogin() {
+    const inputUser = document.getElementById('login-user').value.trim();
+    const inputSenha = document.getElementById('login-senha').value.trim();
 
-      if (!username || !senha) return alert('Preencha o usuário e a senha!');
-
-      const { data: user, error } = await supabaseClient
-        .from('usuarios_sistema')
-        .select('*')
-        .eq('username', username)
-        .single();
-
-      if (error || !user) {
-        return alert('Usuário não encontrado!');
-      }
-
-      if (user.senha !== senha) {
-        return alert('Senha incorreta! Se esqueceu, solicite ao Administrador uma senha provisória.');
-      }
-
-      // Salva sessão local simples
-      sessionStorage.setItem('cns_usuario_id', user.id);
-      sessionStorage.setItem('cns_usuario_nome', user.nome);
-      sessionStorage.setItem('cns_usuario_login', user.username);
-      sessionStorage.setItem('cns_usuario_role', user.role);
-      sessionStorage.setItem('cns_usuario_igreja', user.igreja_id || '');
-
-      // Redireciona conforme perfil
-      if (user.role === 'coordenador') {
-        window.location.href = 'master.html';
-      } else if (user.role === 'cadastro') {
-        window.location.href = 'cadastro-usuarios.html';
-      } else {
-        window.location.href = 'index.html';
-      }
+    if (!inputUser || !inputSenha) {
+      return alert('Preencha o usuário e a senha!');
     }
-  </script>
+
+    // Busca ignorando maiúsculas/minúsculas
+    const { data: usuarios, error } = await supabaseClient
+      .from('usuarios_sistema')
+      .select('*')
+      .ilike('username', inputUser);
+
+    if (error) {
+      return alert('Erro de comunicação com o Supabase: ' + error.message);
+    }
+
+    if (!usuarios || usuarios.length === 0) {
+      return alert(`Usuário "${inputUser}" não foi encontrado no banco de dados.`);
+    }
+
+    const user = usuarios[0];
+
+    if (user.senha !== inputSenha) {
+      return alert('Senha incorreta! Digite os 6 dígitos cadastrados.');
+    }
+
+    // Grava a sessão local
+    sessionStorage.setItem('cns_usuario_id', user.id);
+    sessionStorage.setItem('cns_usuario_nome', user.nome);
+    sessionStorage.setItem('cns_usuario_login', user.username);
+    sessionStorage.setItem('cns_usuario_role', user.role);
+    sessionStorage.setItem('cns_usuario_igreja', user.igreja_id || '');
+
+    // Redireciona conforme o perfil
+    if (user.role === 'coordenador') {
+      window.location.href = 'master.html';
+    } else if (user.role === 'cadastro') {
+      window.location.href = 'cadastro-usuarios.html';
+    } else {
+      window.location.href = 'index.html';
+    }
+  }
+</script>
 </body>
 </html>
