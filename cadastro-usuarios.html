@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gerenciador de Acesso - CNS Limpeza</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800">
+
+  <header class="bg-indigo-950 text-white shadow">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-2">
+      <div>
+        <h1 class="text-lg font-bold">GERENCIADOR DE ACESSO E SENHAS</h1>
+        <p class="text-xs text-indigo-300">Acesso Total: Gerenciar Usuários, Painel Master e Pedidos</p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <a href="master.html" class="bg-blue-700 hover:bg-blue-600 text-xs px-3 py-2 rounded font-bold">
+          Ir para Painel Master
+        </a>
+        <a href="index.html" class="bg-emerald-700 hover:bg-emerald-600 text-xs px-3 py-2 rounded font-bold">
+          Ir para Tela de Pedidos
+        </a>
+        <button onclick="alterarMinhaPropriaSenha()" class="bg-indigo-800 hover:bg-indigo-700 text-xs px-3 py-2 rounded font-semibold">
+          Alterar Minha Senha
+        </button>
+        <button onclick="sair()" class="bg-red-600 hover:bg-red-700 text-xs px-3 py-2 rounded font-bold">
+          Sair
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+
+    <!-- Formulário de Criação -->
+    <div class="bg-white p-6 rounded border shadow-sm self-start space-y-4">
+      <h2 class="font-bold text-slate-700 uppercase text-sm border-b pb-2">Cadastrar Novo Usuário</h2>
+
+      <div>
+        <label class="block text-xs font-bold uppercase mb-1">Nome Completo</label>
+        <input type="text" id="cad-nome" placeholder="Ex: Chico da Silva" class="w-full border rounded p-2 text-sm" />
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold uppercase mb-1">Usuário para Login (Sem espaços)</label>
+        <input type="text" id="cad-username" placeholder="Ex: chico, congrega1" class="w-full border rounded p-2 text-sm" />
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold uppercase mb-1">Senha Inicial (6 dígitos)</label>
+        <input type="text" id="cad-senha" maxlength="6" placeholder="123456" class="w-full border rounded p-2 text-sm font-mono" />
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold uppercase mb-1">Perfil de Acesso</label>
+        <select id="cad-role" class="w-full border rounded p-2 text-sm bg-white">
+          <option value="encarregado">Encarregado (Somente Pedidos)</option>
+          <option value="coordenador">Coordenador (Master + Pedidos)</option>
+          <option value="cadastro">Gerenciador de Acesso (Acesso Total)</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold uppercase mb-1">Igreja Vinculada</label>
+        <select id="cad-igreja" class="w-full border rounded p-2 text-sm bg-white"></select>
+      </div>
+
+      <button onclick="salvarNovoUsuario()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded text-sm transition">
+        CADASTRAR USUÁRIO
+      </button>
+    </div>
+
+    <!-- Lista de Usuários Cadastrados -->
+    <div class="md:col-span-2 bg-white p-6 rounded border shadow-sm space-y-4">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h2 class="font-bold text-slate-700 uppercase text-sm">Usuários Cadastrados</h2>
+        <button onclick="carregarTudo()" class="text-xs bg-slate-200 hover:bg-slate-300 px-2.5 py-1 rounded font-bold">
+          Atualizar Lista
+        </button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm border">
+          <thead class="bg-slate-100 border-b text-left text-xs uppercase">
+            <tr>
+              <th class="p-2">Nome</th>
+              <th class="p-2">Login</th>
+              <th class="p-2">Perfil</th>
+              <th class="p-2">Igreja</th>
+              <th class="p-2 text-center">Ações / Senha</th>
+            </tr>
+          </thead>
+          <tbody id="tabela-usuarios-corpo" class="divide-y"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    const usuarioId = sessionStorage.getItem('cns_usuario_id');
+    const usuarioRole = sessionStorage.getItem('cns_usuario_role');
+    let mapaIgrejas = {};
+
+    function checarPermissao() {
+      if (!usuarioId) {
+        window.location.href = 'login.html';
+        return;
+      }
+      // Apenas o Gerenciador de Acesso ('cadastro') entra aqui
+      if (usuarioRole !== 'cadastro') {
+        alert('Acesso restrito! Somente o Gerenciador de Acesso pode acessar esta página.');
+        window.location.href = (usuarioRole === 'coordenador') ? 'master.html' : 'index.html';
+        return;
+      }
+      carregarTudo();
+    }
+
+    async function carregarTudo() {
+      await carregarIgrejas();
+      await carregarListaUsuarios();
+    }
+
+    async function carregarIgrejas() {
+      const { data, error } = await supabaseClient.from('igrejas').select('*').order('nome');
+      const sel = document.getElementById('cad-igreja');
+      sel.innerHTML = '<option value="">Nenhuma / Geral</option>';
+      mapaIgrejas = {};
+
+      if (error) {
+        console.error('Erro ao carregar igrejas:', error.message);
+        return;
+      }
+
+      (data || []).forEach(ig => {
+        mapaIgrejas[ig.id] = ig.nome;
+        sel.innerHTML += `<option value="${ig.id}">${ig.nome}</option>`;
+      });
+    }
+
+    async function carregarListaUsuarios() {
+      // Busca direta sem depender de foreign key join para nunca falhar
+      const { data, error } = await supabaseClient
+        .from('usuarios_sistema')
+        .select('*')
+        .order('nome');
+
+      const tbody = document.getElementById('tabela-usuarios-corpo');
+
+      if (error) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-600 font-bold">Erro ao ler usuários: ${error.message} (Rode o script de permissão no SQL Editor)</td></tr>`;
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">Nenhum usuário cadastrado ainda.</td></tr>`;
+        return;
+      }
+
+      const nomesPerfis = {
+        encarregado: 'Encarregado',
+        coordenador: 'Coordenador',
+        cadastro: 'Gerenciador Total'
+      };
+
+      tbody.innerHTML = data.map(u => {
+        const nomeIgreja = u.igreja_id ? (mapaIgrejas[u.igreja_id] || 'Igreja #' + u.igreja_id) : 'Geral';
+        return `
+          <tr>
+            <td class="p-2 font-medium">${u.nome}</td>
+            <td class="p-2 text-xs font-mono font-bold text-slate-700">${u.username}</td>
+            <td class="p-2">
+              <span class="px-2 py-0.5 rounded text-xs font-bold uppercase bg-slate-200">${nomesPerfis[u.role] || u.role}</span>
+            </td>
+            <td class="p-2 text-xs">${nomeIgreja}</td>
+            <td class="p-2 text-center space-x-1">
+              <button onclick="reiniciarSenhaProvisoria(${u.id}, '${u.username}')" class="bg-amber-500 hover:bg-amber-600 text-white text-xs px-2 py-1 rounded font-bold">
+                Reiniciar Senha
+              </button>
+              <button onclick="editarUsuario(${u.id}, '${u.nome.replace(/'/g, "\\'")}', '${u.role}')" class="text-blue-600 text-xs font-bold hover:underline">
+                Editar
+              </button>
+              <button onclick="deletarUsuario(${u.id})" class="text-red-600 text-xs font-bold hover:underline">
+                Excluir
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function salvarNovoUsuario() {
+      const nome = document.getElementById('cad-nome').value.trim();
+      const username = document.getElementById('cad-username').value.trim().toLowerCase().replace(/\s+/g, '');
+      const senha = document.getElementById('cad-senha').value.trim();
+      const role = document.getElementById('cad-role').value;
+      const igrejaVal = document.getElementById('cad-igreja').value;
+      const igreja_id = igrejaVal ? parseInt(igrejaVal) : null;
+
+      if (!nome || !username || senha.length < 6) {
+        return alert('Preencha o Nome, o Login e uma Senha de 6 dígitos!');
+      }
+
+      const { error } = await supabaseClient.from('usuarios_sistema').insert([{
+        nome,
+        username,
+        senha,
+        role,
+        igreja_id,
+        senha_provisoria: true
+      }]);
+
+      if (error) {
+        if (error.message.includes('unique')) return alert('Este login já está cadastrado! Escolha outro.');
+        return alert('Erro ao salvar: ' + error.message);
+      }
+
+      alert(`Usuário "${username}" cadastrado com sucesso!`);
+      document.getElementById('cad-nome').value = '';
+      document.getElementById('cad-username').value = '';
+      document.getElementById('cad-senha').value = '';
+      carregarTudo();
+    }
+
+    async function reiniciarSenhaProvisoria(id, username) {
+      const novaSenhaProvisoria = prompt(`Defina a nova SENHA PROVISÓRIA (6 dígitos) para "${username}":`, '123456');
+      if (!novaSenhaProvisoria || novaSenhaProvisoria.trim().length < 6) {
+        return alert('A senha provisória precisa ter 6 dígitos!');
+      }
+
+      const { error } = await supabaseClient
+        .from('usuarios_sistema')
+        .update({ senha: novaSenhaProvisoria.trim(), senha_provisoria: true })
+        .eq('id', id);
+
+      if (error) return alert('Erro ao reiniciar senha: ' + error.message);
+
+      alert(`Senha de "${username}" reiniciada para "${novaSenhaProvisoria}".`);
+      carregarTudo();
+    }
+
+    async function editarUsuario(id, nomeAtual, roleAtual) {
+      const novoNome = prompt('Editar Nome:', nomeAtual);
+      if (!novoNome) return;
+      const novoRole = prompt('Editar Perfil (digite: encarregado, coordenador ou cadastro):', roleAtual);
+      if (!novoRole || !['encarregado', 'coordenador', 'cadastro'].includes(novoRole.trim().toLowerCase())) {
+        return alert('Perfil inválido! Digite encarregado, coordenador ou cadastro.');
+      }
+
+      const { error } = await supabaseClient.from('usuarios_sistema').update({
+        nome: novoNome.trim(),
+        role: novoRole.trim().toLowerCase()
+      }).eq('id', id);
+
+      if (error) return alert('Erro ao editar: ' + error.message);
+      carregarTudo();
+    }
+
+    async function deletarUsuario(id) {
+      if (!confirm('Deseja excluir este usuário?')) return;
+      await supabaseClient.from('usuarios_sistema').delete().eq('id', id);
+      carregarTudo();
+    }
+
+    async function alterarMinhaPropriaSenha() {
+      const nova = prompt('Digite sua nova senha (6 dígitos):');
+      if (!nova || nova.trim().length < 6) return alert('A senha precisa ter no mínimo 6 dígitos!');
+
+      const { error } = await supabaseClient
+        .from('usuarios_sistema')
+        .update({ senha: nova.trim(), senha_provisoria: false })
+        .eq('id', usuarioId);
+
+      if (error) return alert('Erro ao alterar senha: ' + error.message);
+      alert('Sua senha foi alterada com sucesso!');
+    }
+
+    function sair() {
+      sessionStorage.clear();
+      window.location.href = 'login.html';
+    }
+
+    checarPermissao();
+  </script>
+</body>
+</html>
