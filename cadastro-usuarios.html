@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cadastro de Usuários - CNS Limpeza</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800">
+
+  <header class="bg-indigo-950 text-white shadow">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
+      <div>
+        <h1 class="text-lg font-bold">PAINEL DE CADASTRO DE USUÁRIOS</h1>
+        <p class="text-xs text-indigo-300">Criar e alterar acessos (Encarregados, Coordenadores e Cadastro)</p>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="solicitarTrocaSenhaPropria()" class="bg-indigo-800 hover:bg-indigo-700 text-xs px-3 py-2 rounded font-semibold">
+          Alterar Minha Senha
+        </button>
+        <button onclick="sair()" class="bg-red-600 hover:bg-red-700 text-xs px-3 py-2 rounded font-bold">
+          Sair
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+
+    <!-- Formulário de Novo Usuário -->
+    <div class="bg-white p-6 rounded border shadow-sm self-start space-y-4">
+      <h2 class="font-bold text-slate-700 uppercase text-sm border-b pb-2">Cadastrar Novo Usuário</h2>
+
+      <div>
+        <label class="block text-xs font-bold uppercase mb-1">Nome Completo</label>
+        <input type="text" id="user-nome" placeholder="Ex: Carlos Mendes" class="w-full border rounded p-2 text-sm" />
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold uppercase mb-1">E-mail de Login</label>
+        <input type="email" id="user-email" placeholder="carlos@email.com" class="w-full border rounded p-2 text-sm" />
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold uppercase mb-1">Senha Inicial (6 dígitos)</label>
+        <input type="text" id="user-senha" minlength="6" maxlength="6" placeholder="Ex: 123456" class="w-full border rounded p-2 text-sm font-mono" />
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold uppercase mb-1">Perfil de Acesso</label>
+        <select id="user-role" class="w-full border rounded p-2 text-sm bg-white">
+          <option value="encarregado">Encarregado (Solicitação de Materiais)</option>
+          <option value="coordenador">Coordenador (Acesso ao Master)</option>
+          <option value="cadastro">Cadastro (Gerenciar Usuários)</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold uppercase mb-1">Igreja Vinculada (Opcional)</label>
+        <select id="user-igreja" class="w-full border rounded p-2 text-sm bg-white"></select>
+      </div>
+
+      <button onclick="criarNovoUsuario()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded text-sm">
+        CADASTRAR USUÁRIO
+      </button>
+    </div>
+
+    <!-- Lista de Usuários Cadastrados -->
+    <div class="md:col-span-2 bg-white p-6 rounded border shadow-sm">
+      <h2 class="font-bold text-slate-700 uppercase text-sm border-b pb-2 mb-4">Usuários Cadastrados no Sistema</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm border">
+          <thead class="bg-slate-100 border-b text-left text-xs uppercase">
+            <tr>
+              <th class="p-2">Nome</th>
+              <th class="p-2">E-mail</th>
+              <th class="p-2">Perfil</th>
+              <th class="p-2">Igreja</th>
+              <th class="p-2 text-center">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tabela-usuarios" class="divide-y"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    let usuarioLogadoEmail = '';
+
+    // Criamos um segundo cliente que não desconecta o administrador ao criar outra conta
+    const supabaseCreator = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false }
+    });
+
+    async function verificarAcesso() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) return window.location.href = 'login.html';
+
+      usuarioLogadoEmail = session.user.email;
+      const { data: perfil } = await supabaseClient.from('profiles').select('role').eq('id', session.user.id).single();
+
+      if (!perfil || (perfil.role !== 'cadastro' && perfil.role !== 'coordenador')) {
+        alert('Acesso restrito ao perfil de Cadastro!');
+        return window.location.href = 'index.html';
+      }
+
+      carregarIgrejas();
+      carregarUsuarios();
+    }
+
+    async function carregarIgrejas() {
+      const { data } = await supabaseClient.from('igrejas').select('*').order('nome');
+      const sel = document.getElementById('user-igreja');
+      sel.innerHTML = '<option value="">Nenhuma / Todas</option>';
+      (data || []).forEach(ig => {
+        sel.innerHTML += `<option value="${ig.id}">${ig.nome}</option>`;
+      });
+    }
+
+    async function carregarUsuarios() {
+      const { data } = await supabaseClient
+        .from('profiles')
+        .select('id, nome, email, role, igrejas(nome)')
+        .order('nome');
+
+      const tbody = document.getElementById('tabela-usuarios');
+      tbody.innerHTML = (data || []).map(u => `
+        <tr>
+          <td class="p-2 font-medium">${u.nome}</td>
+          <td class="p-2 text-xs text-slate-600">${u.email || '-'}</td>
+          <td class="p-2">
+            <span class="px-2 py-0.5 rounded text-xs font-bold uppercase bg-slate-200">${u.role}</span>
+          </td>
+          <td class="p-2 text-xs">${u.igrejas?.nome || '-'}</td>
+          <td class="p-2 text-center space-x-2">
+            <button onclick="alterarUsuario('${u.id}', '${u.nome.replace(/'/g, "\\'")}', '${u.role}')" class="text-blue-600 text-xs font-bold hover:underline">ALTERAR</button>
+            <button onclick="enviarResetEmail('${u.email}')" class="text-amber-600 text-xs font-bold hover:underline">ENVIAR EMAIL SENHA</button>
+            <button onclick="deletarPerfil('${u.id}')" class="text-red-600 text-xs font-bold hover:underline">EXCLUIR</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function criarNovoUsuario() {
+      const nome = document.getElementById('user-nome').value.trim();
+      const email = document.getElementById('user-email').value.trim();
+      const password = document.getElementById('user-senha').value.trim();
+      const role = document.getElementById('user-role').value;
+      const igreja_id = document.getElementById('user-igreja').value || null;
+
+      if (!nome || !email || password.length < 6) {
+        return alert('Preencha nome, e-mail e uma senha de 6 dígitos!');
+      }
+
+      // 1. Cria no Supabase Auth usando o cliente isolado
+      const { data, error } = await supabaseCreator.auth.signUp({ email, password });
+      if (error) return alert('Erro ao criar login: ' + error.message);
+
+      if (data?.user) {
+        // 2. Grava na tabela profiles
+        const { error: errProf } = await supabaseClient.from('profiles').upsert([{
+          id: data.user.id,
+          nome,
+          email,
+          role,
+          igreja_id
+        }]);
+        if (errProf) return alert('Erro ao salvar perfil: ' + errProf.message);
+      }
+
+      alert('Usuário cadastrado com sucesso!');
+      document.getElementById('user-nome').value = '';
+      document.getElementById('user-email').value = '';
+      document.getElementById('user-senha').value = '';
+      carregarUsuarios();
+    }
+
+    async function alterarUsuario(id, nomeAtual, roleAtual) {
+      const novoNome = prompt('Alterar Nome do Usuário:', nomeAtual);
+      if (!novoNome) return;
+
+      const novoRole = prompt('Alterar Perfil (digite: encarregado, coordenador ou cadastro):', roleAtual);
+      if (!novoRole || !['encarregado', 'coordenador', 'cadastro'].includes(novoRole.trim().toLowerCase())) {
+        return alert('Perfil inválido! Digite exatamente: encarregado, coordenador ou cadastro.');
+      }
+
+      const { error } = await supabaseClient
+        .from('profiles')
+        .update({ nome: novoNome.trim(), role: novoRole.trim().toLowerCase() })
+        .eq('id', id);
+
+      if (error) return alert('Erro ao alterar: ' + error.message);
+      carregarUsuarios();
+    }
+
+    async function enviarResetEmail(email) {
+      if (!email) return alert('Este usuário não possui e-mail registrado no perfil.');
+      const urlRedirecionamento = window.location.origin + '/redefinir-senha.html';
+      const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: urlRedirecionamento });
+      if (error) return alert('Erro: ' + error.message);
+      alert(`Link de alteração de senha enviado para ${email}!`);
+    }
+
+    async function deletarPerfil(id) {
+      if (!confirm('Deseja remover o acesso deste usuário?')) return;
+      await supabaseClient.from('profiles').delete().eq('id', id);
+      carregarUsuarios();
+    }
+
+    async function solicitarTrocaSenhaPropria() {
+      await enviarResetEmail(usuarioLogadoEmail);
+    }
+
+    async function sair() {
+      await supabaseClient.auth.signOut();
+      window.location.href = 'login.html';
+    }
+
+    verificarAcesso();
+  </script>
+</body>
+</html>

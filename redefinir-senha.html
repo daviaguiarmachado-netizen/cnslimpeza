@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nova Senha - CNS Limpeza</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+</head>
+<body class="bg-slate-900 min-h-screen flex items-center justify-center p-4">
+
+  <div class="bg-white rounded-xl shadow-lg max-w-md w-full p-8 space-y-6">
+    <div class="text-center">
+      <h1 class="text-xl font-bold text-slate-800">Definir Nova Senha</h1>
+      <p class="text-xs text-slate-500 mt-1">Digite sua nova senha de no mínimo 6 dígitos</p>
+    </div>
+
+    <div class="space-y-4">
+      <div>
+        <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Nova Senha (6 dígitos)</label>
+        <input type="password" id="nova-senha" minlength="6" placeholder="••••••" class="w-full border rounded-lg px-3 py-2.5 text-sm" />
+      </div>
+
+      <button onclick="salvarNovaSenha()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg text-sm">
+        SALVAR NOVA SENHA
+      </button>
+    </div>
+  </div>
+
+  <script>
+    async function salvarNovaSenha() {
+      const novaSenha = document.getElementById('nova-senha').value.trim();
+      if (novaSenha.length < 6) return alert('A senha deve ter pelo menos 6 dígitos!');
+
+      const { error } = await supabaseClient.auth.updateUser({ password: novaSenha });
+      if (error) return alert('Erro ao alterar senha: ' + error.message);
+
+      alert('Senha alterada com sucesso! Você será redirecionado para o login.');
+      window.location.href = 'login.html';
+    }
+  </script>
+</body>
+</html>
