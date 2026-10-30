@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login - CNS Limpeza</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+</head>
+<body class="bg-slate-900 min-h-screen flex items-center justify-center p-4">
+
+  <div class="bg-white rounded-xl shadow-lg max-w-md w-full p-8 space-y-6">
+    <div class="text-center">
+      <h1 class="text-2xl font-bold text-slate-800">Controle de Estoque & Pedidos</h1>
+      <p class="text-xs text-slate-500 mt-1">Acesse com seu usuário e senha de 6 dígitos</p>
+    </div>
+
+    <div class="space-y-4">
+      <div>
+        <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Nome de Usuário (Login)</label>
+        <input type="text" id="login-user" placeholder="Ex: joao, admin, congrega1" class="w-full border rounded-lg px-3 py-2.5 text-sm uppercase" />
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Senha (6 dígitos)</label>
+        <input type="password" id="login-senha" maxlength="6" placeholder="••••••" class="w-full border rounded-lg px-3 py-2.5 text-sm font-mono" />
+      </div>
+
+      <button onclick="fazerLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg text-sm transition">
+        ENTRAR NO SISTEMA
+      </button>
+
+      <div class="border-t pt-4 text-center">
+        <p class="text-xs text-slate-500">
+          Esqueceu a senha? Solicite ao <b>Administrador Geral</b> para reiniciar com uma senha provisória.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function fazerLogin() {
+      const username = document.getElementById('login-user').value.trim().toLowerCase();
+      const senha = document.getElementById('login-senha').value.trim();
+
+      if (!username || !senha) return alert('Preencha o usuário e a senha!');
+
+      const { data: user, error } = await supabaseClient
+        .from('usuarios_sistema')
+        .select('*')
+        .eq('username', username)
+        .single();
+
+      if (error || !user) {
+        return alert('Usuário não encontrado!');
+      }
+
+      if (user.senha !== senha) {
+        return alert('Senha incorreta! Se esqueceu, solicite ao Administrador uma senha provisória.');
+      }
+
+      // Salva sessão local simples
+      sessionStorage.setItem('cns_usuario_id', user.id);
+      sessionStorage.setItem('cns_usuario_nome', user.nome);
+      sessionStorage.setItem('cns_usuario_login', user.username);
+      sessionStorage.setItem('cns_usuario_role', user.role);
+      sessionStorage.setItem('cns_usuario_igreja', user.igreja_id || '');
+
+      // Redireciona conforme perfil
+      if (user.role === 'coordenador') {
+        window.location.href = 'master.html';
+      } else if (user.role === 'cadastro') {
+        window.location.href = 'cadastro-usuarios.html';
+      } else {
+        window.location.href = 'index.html';
+      }
+    }
+  </script>
+</body>
+</html>

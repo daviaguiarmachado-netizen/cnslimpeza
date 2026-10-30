@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Painel Coordenador (Master) - CNS Limpeza</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800">
+
+  <header class="bg-slate-900 text-white shadow">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
+      <div>
+        <h1 class="text-lg font-bold">PAINEL COORDENADOR (MASTER)</h1>
+        <p class="text-xs text-slate-400" id="master-info-usuario">Carregando...</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="cadastro-usuarios.html" class="bg-indigo-700 hover:bg-indigo-600 text-xs px-3 py-2 rounded font-semibold">
+          Gerenciar Usuários & Senhas
+        </a>
+        <a href="index.html" class="bg-slate-700 hover:bg-slate-600 text-xs px-3 py-2 rounded font-semibold">
+          Tela de Pedidos
+        </a>
+        <button onclick="alterarMinhaSenhaMaster()" class="bg-slate-700 hover:bg-slate-600 text-xs px-3 py-2 rounded font-semibold">
+          Alterar Minha Senha
+        </button>
+        <button onclick="sairMaster()" class="bg-red-600 hover:bg-red-700 text-xs px-3 py-2 rounded font-bold">
+          Sair
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <nav class="bg-white border-b shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 flex overflow-x-auto space-x-1 py-2">
+      <button onclick="abrirAba('aba-pedidos', this)" class="aba-btn bg-blue-600 text-white px-3 py-2 rounded text-xs font-bold uppercase">
+        1. Pedidos dos Usuários
+      </button>
+      <button onclick="abrirAba('aba-estoque', this)" class="aba-btn text-slate-600 hover:bg-slate-100 px-3 py-2 rounded text-xs font-bold uppercase">
+        2. Controle Estoque
+      </button>
+      <button onclick="abrirAba('aba-saidas', this)" class="aba-btn text-slate-600 hover:bg-slate-100 px-3 py-2 rounded text-xs font-bold uppercase">
+        3. Saída de Produtos
+      </button>
+      <button onclick="abrirAba('aba-inclusao', this)" class="aba-btn text-slate-600 hover:bg-slate-100 px-3 py-2 rounded text-xs font-bold uppercase">
+        4. Estoque por Inclusão
+      </button>
+      <button onclick="abrirAba('aba-igreja', this)" class="aba-btn text-slate-600 hover:bg-slate-100 px-3 py-2 rounded text-xs font-bold uppercase">
+        5. Cadastrar Igreja
+      </button>
+      <button onclick="abrirAba('aba-produto', this)" class="aba-btn text-slate-600 hover:bg-slate-100 px-3 py-2 rounded text-xs font-bold uppercase">
+        6. Cadastro de Produto
+      </button>
+    </div>
+  </nav>
+
+  <main class="max-w-7xl mx-auto px-4 py-6">
+
+    <!-- ABA 1: PEDIDOS DOS USUÁRIOS -->
+    <section id="aba-pedidos" class="aba-conteudo space-y-4">
+      <div class="bg-white p-5 rounded border shadow-sm">
+        <h2 class="text-base font-bold mb-4 uppercase text-slate-700">Pedidos Aguardando Aprovação / Entrega</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm border">
+            <thead class="bg-slate-100 border-b text-left text-xs uppercase">
+              <tr>
+                <th class="p-3">ID</th>
+                <th class="p-3">Igreja</th>
+                <th class="p-3">Responsável</th>
+                <th class="p-3">Itens Solicitados</th>
+                <th class="p-3">Status</th>
+                <th class="p-3 text-center">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-master-pedidos" class="divide-y"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ABA 2: CONTROLE DE ESTOQUE -->
+    <section id="aba-estoque" class="aba-conteudo hidden">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="md:col-span-2 bg-white p-5 rounded border shadow-sm">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="font-bold text-slate-700 uppercase text-sm">Saldo Geral de Estoque</h2>
+            <button onclick="window.print()" class="bg-slate-800 text-white text-xs px-3 py-1.5 rounded font-bold">GERAR PDF / IMPRIMIR</button>
+          </div>
+          <table class="w-full text-sm border">
+            <thead class="bg-slate-100 border-b text-left text-xs uppercase">
+              <tr>
+                <th class="p-2">ID</th>
+                <th class="p-2">Produto</th>
+                <th class="p-2">Categoria</th>
+                <th class="p-2 text-right">Saldo Atual</th>
+                <th class="p-2 text-right">Valor Total</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-saldo-estoque" class="divide-y"></tbody>
+          </table>
+        </div>
+
+        <div class="bg-white p-5 rounded border shadow-sm self-start space-y-3">
+          <h3 class="font-bold text-slate-700 uppercase text-sm border-b pb-2">Entrada Rápida de Estoque</h3>
+          <div>
+            <label class="block text-xs font-bold uppercase mb-1">Escolha o Produto</label>
+            <select id="ent-produto" class="w-full border rounded p-2 text-sm bg-white"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase mb-1">Preço Unitário (R$)</label>
+            <input type="number" step="0.01" id="ent-preco" class="w-full border rounded p-2 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase mb-1">Quantidade</label>
+            <input type="number" id="ent-qtd" class="w-full border rounded p-2 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase mb-1">Data da Entrada</label>
+            <input type="date" id="ent-data" class="w-full border rounded p-2 text-sm" />
+          </div>
+          <button onclick="registrarEntrada()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded text-sm">
+            CADASTRAR ENTRADA
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ABA 3: SAÍDA DE PRODUTOS -->
+    <section id="aba-saidas" class="aba-conteudo hidden">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="md:col-span-2 bg-white p-5 rounded border shadow-sm">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="font-bold text-slate-700 uppercase text-sm">Saídas de Produtos por Igreja</h2>
+            <button onclick="window.print()" class="bg-slate-800 text-white text-xs px-3 py-1.5 rounded font-bold">GERAR PDF</button>
+          </div>
+          <table class="w-full text-sm border">
+            <thead class="bg-slate-100 border-b text-left text-xs uppercase">
+              <tr>
+                <th class="p-2">ID</th>
+                <th class="p-2">Igreja</th>
+                <th class="p-2">Produto</th>
+                <th class="p-2 text-right">Preço</th>
+                <th class="p-2 text-right">Qtd</th>
+                <th class="p-2 text-right">Valor Total</th>
+                <th class="p-2 text-center">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-saidas" class="divide-y"></tbody>
+          </table>
+        </div>
+
+        <div class="bg-white p-5 rounded border shadow-sm self-start space-y-3">
+          <h3 class="font-bold text-slate-700 uppercase text-sm border-b pb-2">Lançar Saída Manual</h3>
+          <div>
+            <label class="block text-xs font-bold uppercase mb-1">Escolha a Igreja</label>
+            <select id="sai-igreja" class="w-full border rounded p-2 text-sm bg-white"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase mb-1">Escolha o Produto</label>
+            <select id="sai-produto" class="w-full border rounded p-2 text-sm bg-white"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase mb-1">Quantidade</label>
+            <input type="number" id="sai-qtd" class="w-full border rounded p-2 text-sm" />
+          </div>
+          <button onclick="registrarSaidaManual()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded text-sm">
+            CADASTRAR SAÍDA
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ABA 4: ESTOQUE POR INCLUSÃO -->
+    <section id="aba-inclusao" class="aba-conteudo hidden">
+      <div class="bg-white p-5 rounded border shadow-sm">
+        <h2 class="font-bold text-slate-700 uppercase text-sm mb-4">Histórico de Entradas (Alterar ou Deletar Inclusões)</h2>
+        <table class="w-full text-sm border">
+          <thead class="bg-slate-100 border-b text-left text-xs uppercase">
+            <tr>
+              <th class="p-2">ID</th>
+              <th class="p-2">Produto</th>
+              <th class="p-2 text-right">Preço Unit.</th>
+              <th class="p-2 text-right">Quantidade</th>
+              <th class="p-2">Data de Entrada</th>
+              <th class="p-2 text-center">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tabela-inclusoes" class="divide-y"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ABA 5: CADASTRAR IGREJA -->
+    <section id="aba-igreja" class="aba-conteudo hidden">
+      <div class="max-w-xl mx-auto bg-white p-6 rounded border shadow-sm space-y-4">
+        <h2 class="font-bold text-slate-700 uppercase text-sm border-b pb-2">Gerenciar Igrejas</h2>
+        <div class="flex gap-2">
+          <input type="text" id="cad-igreja-nome" placeholder="Nome da Igreja a ser cadastrada" class="flex-1 border rounded p-2 text-sm" />
+          <button onclick="salvarIgreja()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded text-sm">
+            CADASTRAR IGREJA
+          </button>
+        </div>
+        <ul id="lista-igrejas" class="border rounded divide-y text-sm"></ul>
+      </div>
+    </section>
+
+    <!-- ABA 6: CADASTRO DE PRODUTO -->
+    <section id="aba-produto" class="aba-conteudo hidden">
+      <div class="max-w-xl mx-auto bg-white p-6 rounded border shadow-sm space-y-4">
+        <h2 class="font-bold text-slate-700 uppercase text-sm border-b pb-2">Gerenciar Produtos</h2>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-bold uppercase mb-1">Nome do Produto</label>
+            <input type="text" id="cad-prod-nome" placeholder="Ex: Sabão em Pó 1kg" class="w-full border rounded p-2 text-sm" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold uppercase mb-1">Categoria</label>
+              <select id="cad-prod-cat" class="w-full border rounded p-2 text-sm bg-white">
+                <option value="Limpeza">Limpeza</option>
+                <option value="Consumo">Material de Consumo</option>
+                <option value="Equipamento">Equipamento</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase mb-1">Preço Padrão (R$)</label>
+              <input type="number" step="0.01" id="cad-prod-preco" placeholder="0.00" class="w-full border rounded p-2 text-sm" />
+            </div>
+          </div>
+          <button onclick="salvarProduto()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded text-sm">
+            CADASTRAR PRODUTO
+          </button>
+        </div>
+        <ul id="lista-produtos" class="border rounded divide-y text-sm"></ul>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    let catalogoProdutos = [];
+    let saldosAtuais = [];
+    const usuarioId = sessionStorage.getItem('cns_usuario_id');
+    const usuarioNome = sessionStorage.getItem('cns_usuario_nome');
+    const usuarioRole = sessionStorage.getItem('cns_usuario_role');
+
+    function abrirAba(idAba, btn) {
+      document.querySelectorAll('.aba-conteudo').forEach(el => el.classList.add('hidden'));
+      document.getElementById(idAba).classList.remove('hidden');
+
+      document.querySelectorAll('.aba-btn').forEach(b => {
+        b.classList.remove('bg-blue-600', 'text-white');
+        b.classList.add('text-slate-600');
+      });
+      btn.classList.add('bg-blue-600', 'text-white');
+      btn.classList.remove('text-slate-600');
+    }
+
+    function protegerEIniciarMaster() {
+      if (!usuarioId) {
+        window.location.href = 'login.html';
+        return;
+      }
+      if (usuarioRole !== 'coordenador') {
+        alert('Acesso negado! Este painel é restrito aos Coordenadores.');
+        window.location.href = (usuarioRole === 'cadastro') ? 'cadastro-usuarios.html' : 'index.html';
+        return;
+      }
+
+      document.getElementById('master-info-usuario').innerText = `Conectado como: ${usuarioNome}`;
+      atualizarTudo();
+    }
+
+    async function atualizarTudo() {
+      await carregarSaldoEstoque();
+      await carregarIgrejas();
+      await carregarProdutos();
+      await carregarPedidosMaster();
+      await carregarInclusoes();
+      await carregarSaidas();
+    }
+
+    // 1. SALDO DE ESTOQUE
+    async function carregarSaldoEstoque() {
+      const { data } = await supabaseClient.from('vw_saldo_estoque').select('*').order('produto');
+      saldosAtuais = data || [];
+      const tbody = document.getElementById('tabela-saldo-estoque');
+
+      tbody.innerHTML = saldosAtuais.map(item => {
+        const saldo = Number(item.saldo_atual);
+        const valorTotal = saldo * Number(item.preco_padrao || 0);
+        const badge = saldo <= 0
+          ? `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs font-bold">SEM ESTOQUE (0)</span>`
+          : `<span class="font-bold text-slate-800">${saldo}</span>`;
+
+        return `
+          <tr>
+            <td class="p-2">${item.produto_id}</td>
+            <td class="p-2 font-semibold">${item.produto}</td>
+            <td class="p-2 text-xs">${item.categoria || '-'}</td>
+            <td class="p-2 text-right">${badge}</td>
+            <td class="p-2 text-right">R$ ${valorTotal.toFixed(2)}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // 2. IGREJAS
+    async function carregarIgrejas() {
+      const { data } = await supabaseClient.from('igrejas').select('*').order('nome');
+      const ul = document.getElementById('lista-igrejas');
+      const selSai = document.getElementById('sai-igreja');
+      ul.innerHTML = '';
+      selSai.innerHTML = '<option value="">Selecione...</option>';
+
+      (data || []).forEach(ig => {
+        ul.innerHTML += `
+          <li class="p-2 flex justify-between items-center">
+            <span class="font-medium">${ig.nome}</span>
+            <div class="space-x-2">
+              <button onclick="editarIgreja(${ig.id}, '${ig.nome.replace(/'/g, "\\'")}')" class="text-blue-600 text-xs font-bold hover:underline">EDITAR</button>
+              <button onclick="deletarIgreja(${ig.id})" class="text-red-600 text-xs font-bold hover:underline">DELETAR</button>
+            </div>
+          </li>`;
+        selSai.innerHTML += `<option value="${ig.id}">${ig.nome}</option>`;
+      });
+    }
+
+    async function salvarIgreja() {
+      const nome = document.getElementById('cad-igreja-nome').value.trim();
+      if (!nome) return alert('Digite o nome da igreja.');
+      await supabaseClient.from('igrejas').insert([{ nome }]);
+      document.getElementById('cad-igreja-nome').value = '';
+      atualizarTudo();
+    }
+
+    async function editarIgreja(id, nomeAtual) {
+      const novoNome = prompt('Editar nome da Igreja:', nomeAtual);
+      if (!novoNome || novoNome.trim() === '') return;
+      await supabaseClient.from('igrejas').update({ nome: novoNome.trim() }).eq('id', id);
+      atualizarTudo();
+    }
+
+    async function deletarIgreja(id) {
+      if (!confirm('Deseja excluir esta igreja? Todos os pedidos relacionados serão excluídos junto.')) return;
+      await supabaseClient.from('igrejas').delete().eq('id', id);
+      atualizarTudo();
+    }
+
+    // 3. PRODUTOS
+    async function carregarProdutos() {
+      const { data } = await supabaseClient.from('produtos').select('*').order('nome');
+      catalogoProdutos = data || [];
+      const ul = document.getElementById('lista-produtos');
+      const selEnt = document.getElementById('ent-produto');
+      const selSai = document.getElementById('sai-produto');
+
+      ul.innerHTML = '';
+      selEnt.innerHTML = '<option value="">Selecione...</option>';
+      selSai.innerHTML = '<option value="">Selecione...</option>';
+
+      catalogoProdutos.forEach(p => {
+        const itemSaldo = saldosAtuais.find(s => s.produto_id == p.id);
+        const qtdDisp = itemSaldo ? Number(itemSaldo.saldo_atual) : 0;
+
+        ul.innerHTML += `
+          <li class="p-2 flex justify-between items-center">
+            <span><b>${p.nome}</b> (${p.categoria || 'Limpeza'}) - R$ ${Number(p.preco_padrao).toFixed(2)}</span>
+            <div class="space-x-2">
+              <button onclick="editarProduto(${p.id}, '${p.nome.replace(/'/g, "\\'")}', ${p.preco_padrao})" class="text-blue-600 text-xs font-bold hover:underline">EDITAR</button>
+              <button onclick="deletarProduto(${p.id})" class="text-red-600 text-xs font-bold hover:underline">DELETAR</button>
+            </div>
+          </li>`;
+
+        selEnt.innerHTML += `<option value="${p.id}">${p.nome}</option>`;
+        selSai.innerHTML += `<option value="${p.id}">${p.nome} (Saldo: ${qtdDisp})</option>`;
+      });
+    }
+
+    async function salvarProduto() {
+      const nome = document.getElementById('cad-prod-nome').value.trim();
+      const categoria = document.getElementById('cad-prod-cat').value;
+      const preco_padrao = parseFloat(document.getElementById('cad-prod-preco').value) || 0;
+      if (!nome) return alert('Digite o nome do produto.');
+
+      await supabaseClient.from('produtos').insert([{ nome, categoria, preco_padrao }]);
+      document.getElementById('cad-prod-nome').value = '';
+      document.getElementById('cad-prod-preco').value = '';
+      atualizarTudo();
+    }
+
+    async function editarProduto(id, nomeAtual, precoAtual) {
+      const novoNome = prompt('Editar nome do Produto:', nomeAtual);
+      if (!novoNome) return;
+      const novoPreco = prompt('Editar preço (R$):', precoAtual);
+      if (novoPreco === null) return;
+
+      await supabaseClient.from('produtos').update({ nome: novoNome.trim(), preco_padrao: parseFloat(novoPreco) || 0 }).eq('id', id);
+      atualizarTudo();
+    }
+
+    async function deletarProduto(id) {
+      if (!confirm('Deseja excluir este produto? Todo histórico dele será apagado.')) return;
+      await supabaseClient.from('produtos').delete().eq('id', id);
+      atualizarTudo();
+    }
+
+    // 4. ENTRADAS
+    async function registrarEntrada() {
+      const produto_id = document.getElementById('ent-produto').value;
+      const preco_unitario = parseFloat(document.getElementById('ent-preco').value) || 0;
+      const quantidade = parseInt(document.getElementById('ent-qtd').value) || 0;
+      const data_entrada = document.getElementById('ent-data').value || new Date().toISOString().split('T')[0];
+
+      if (!produto_id || quantidade <= 0) return alert('Selecione um produto e quantidade válida.');
+
+      await supabaseClient.from('entradas_estoque').insert([{ produto_id, preco_unitario, quantidade, data_entrada }]);
+      if (preco_unitario > 0) {
+        await supabaseClient.from('produtos').update({ preco_padrao: preco_unitario }).eq('id', produto_id);
+      }
+
+      alert('Entrada cadastrada com sucesso!');
+      document.getElementById('ent-qtd').value = '';
+      atualizarTudo();
+    }
+
+    async function carregarInclusoes() {
+      const { data } = await supabaseClient
+        .from('entradas_estoque')
+        .select('id, quantidade, preco_unitario, data_entrada, produtos(nome)')
+        .order('id', { ascending: false });
+
+      document.getElementById('tabela-inclusoes').innerHTML = (data || []).map(e => `
+        <tr>
+          <td class="p-2">${e.id}</td>
+          <td class="p-2 font-medium">${e.produtos?.nome || '-'}</td>
+          <td class="p-2 text-right">R$ ${Number(e.preco_unitario).toFixed(2)}</td>
+          <td class="p-2 text-right font-bold">${e.quantidade}</td>
+          <td class="p-2">${e.data_entrada}</td>
+          <td class="p-2 text-center space-x-2">
+            <button onclick="editarEntrada(${e.id}, ${e.quantidade}, ${e.preco_unitario})" class="text-blue-600 text-xs font-bold hover:underline">EDITAR</button>
+            <button onclick="deletarEntrada(${e.id})" class="text-red-600 text-xs font-bold hover:underline">DELETAR</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function editarEntrada(id, qtdAtual, precoAtual) {
+      const novaQtd = parseInt(prompt('Nova quantidade:', qtdAtual));
+      if (isNaN(novaQtd) || novaQtd <= 0) return;
+      const novoPreco = parseFloat(prompt('Novo preço unitário (R$):', precoAtual));
+      if (isNaN(novoPreco) || novoPreco < 0) return;
+
+      await supabaseClient.from('entradas_estoque').update({ quantidade: novaQtd, preco_unitario: novoPreco }).eq('id', id);
+      atualizarTudo();
+    }
+
+    async function deletarEntrada(id) {
+      if (!confirm('Deseja excluir esta entrada? O saldo será recalculado.')) return;
+      await supabaseClient.from('entradas_estoque').delete().eq('id', id);
+      atualizarTudo();
+    }
+
+    // 5. PEDIDOS
+    async function carregarPedidosMaster() {
+      const { data } = await supabaseClient
+        .from('pedidos')
+        .select('id, responsavel, status, data_pedido, igrejas(nome), pedido_itens(id, produto_id, quantidade, produtos(nome))')
+        .order('id', { ascending: false });
+
+      document.getElementById('tabela-master-pedidos').innerHTML = (data || []).map(p => {
+        const itens = (p.pedido_itens || []).map(i => `${i.quantidade}x ${i.produtos?.nome}`).join(', ');
+        return `
+          <tr>
+            <td class="p-3 font-bold">#${p.id}</td>
+            <td class="p-3">${p.igrejas?.nome || '-'}</td>
+            <td class="p-3">${p.responsavel || '-'}</td>
+            <td class="p-3 text-xs font-medium">${itens || 'Sem itens'}</td>
+            <td class="p-3 font-bold uppercase text-xs">${p.status}</td>
+            <td class="p-3 text-center space-x-1">
+              <button onclick="mudarStatusPedido(${p.id}, 'aprovado', '${p.status}')" class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-bold">Aprovar</button>
+              <button onclick="mudarStatusPedido(${p.id}, 'entregue', '${p.status}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-xs font-bold">Entregue</button>
+              <button onclick="recusarEDeletarPedido(${p.id})" class="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-bold">Recusar / Excluir</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function mudarStatusPedido(pedidoId, novoStatus, statusAtual) {
+      if (statusAtual === 'pendente' && (novoStatus === 'aprovado' || novoStatus === 'entregue')) {
+        const { data: itens } = await supabaseClient
+          .from('pedido_itens')
+          .select('produto_id, quantidade, produtos(nome)')
+          .eq('pedido_id', pedidoId);
+
+        for (const item of (itens || [])) {
+          const regSaldo = saldosAtuais.find(s => s.produto_id == item.produto_id);
+          const disponivel = regSaldo ? Number(regSaldo.saldo_atual) : 0;
+          if (disponivel < item.quantidade) {
+            return alert(`NÃO É POSSÍVEL APROVAR!\nProduto: ${item.produtos?.nome}\nSolicitado: ${item.quantidade}\nDisponível: ${disponivel}`);
+          }
+        }
+      }
+
+      await supabaseClient.from('pedidos').update({ status: novoStatus }).eq('id', pedidoId);
+      atualizarTudo();
+    }
+
+    async function recusarEDeletarPedido(pedidoId) {
+      if (!confirm('Recusar este pedido fará com que ele seja DELETADO do sistema. Confirmar?')) return;
+      await supabaseClient.from('pedidos').delete().eq('id', pedidoId);
+      atualizarTudo();
+    }
+
+    // 6. SAÍDAS
+    async function registrarSaidaManual() {
+      const igreja_id = document.getElementById('sai-igreja').value;
+      const produto_id = document.getElementById('sai-produto').value;
+      const quantidade = parseInt(document.getElementById('sai-qtd').value) || 0;
+      if (!igreja_id || !produto_id || quantidade <= 0) return alert('Preencha os campos corretamente.');
+
+      const regSaldo = saldosAtuais.find(s => s.produto_id == produto_id);
+      const disponivel = regSaldo ? Number(regSaldo.saldo_atual) : 0;
+
+      if (disponivel <= 0) return alert('OPERAÇÃO BLOQUEADA: Este produto está SEM ESTOQUE!');
+      if (quantidade > disponivel) return alert(`OPERAÇÃO BLOQUEADA: Estoque insuficiente! Apenas ${disponivel} disponível.`);
+
+      const prod = catalogoProdutos.find(p => p.id == produto_id);
+      const { data: ped, error } = await supabaseClient
+        .from('pedidos')
+        .insert([{ igreja_id, responsavel: 'Lançamento Master', status: 'entregue' }])
+        .select()
+        .single();
+
+      if (error) return alert('Erro: ' + error.message);
+
+      await supabaseClient.from('pedido_itens').insert([{
+        pedido_id: ped.id,
+        produto_id,
+        quantidade,
+        preco_unitario: prod ? prod.preco_padrao : 0
+      }]);
+
+      alert('Saída registrada!');
+      document.getElementById('sai-qtd').value = '';
+      atualizarTudo();
+    }
+
+    async function carregarSaidas() {
+      const { data } = await supabaseClient
+        .from('pedido_itens')
+        .select('id, pedido_id, produto_id, quantidade, preco_unitario, produtos(nome), pedidos!inner(id, status, igrejas(nome))')
+        .in('pedidos.status', ['aprovado', 'entregue'])
+        .order('id', { ascending: false });
+
+      document.getElementById('tabela-saidas').innerHTML = (data || []).map(s => {
+        const total = Number(s.quantidade) * Number(s.preco_unitario);
+        return `
+          <tr>
+            <td class="p-2">${s.id}</td>
+            <td class="p-2">${s.pedidos?.igrejas?.nome || '-'}</td>
+            <td class="p-2 font-medium">${s.produtos?.nome || '-'}</td>
+            <td class="p-2 text-right">R$ ${Number(s.preco_unitario).toFixed(2)}</td>
+            <td class="p-2 text-right font-bold">${s.quantidade}</td>
+            <td class="p-2 text-right font-bold">R$ ${total.toFixed(2)}</td>
+            <td class="p-2 text-center space-x-2">
+              <button onclick="editarSaida(${s.id}, ${s.produto_id}, ${s.quantidade}, ${s.preco_unitario})" class="text-blue-600 text-xs font-bold hover:underline">EDITAR</button>
+              <button onclick="deletarSaida(${s.id}, ${s.pedido_id})" class="text-red-600 text-xs font-bold hover:underline">DELETAR</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function editarSaida(itemId, produtoId, qtdAtual, precoAtual) {
+      const novaQtd = parseInt(prompt('Nova quantidade de saída:', qtdAtual));
+      if (isNaN(novaQtd) || novaQtd <= 0) return;
+      const regSaldo = saldosAtuais.find(s => s.produto_id == produtoId);
+      const disponivelReal = (regSaldo ? Number(regSaldo.saldo_atual) : 0) + qtdAtual;
+      if (novaQtd > disponivelReal) return alert(`Estoque insuficiente! Máximo permitido: ${disponivelReal}.`);
+
+      const novoPreco = parseFloat(prompt('Novo preço:', precoAtual));
+      if (isNaN(novoPreco) || novoPreco < 0) return;
+
+      await supabaseClient.from('pedido_itens').update({ quantidade: novaQtd, preco_unitario: novoPreco }).eq('id', itemId);
+      atualizarTudo();
+    }
+
+    async function deletarSaida(itemId, pedidoId) {
+      if (!confirm('Deseja deletar esta saída? A quantidade voltará ao estoque.')) return;
+      await supabaseClient.from('pedido_itens').delete().eq('id', itemId);
+      const { data: restantes } = await supabaseClient.from('pedido_itens').select('id').eq('pedido_id', pedidoId);
+      if (!restantes || restantes.length === 0) {
+        await supabaseClient.from('pedidos').delete().eq('id', pedidoId);
+      }
+      atualizarTudo();
+    }
+
+    async function alterarMinhaSenhaMaster() {
+      const nova = prompt('Digite sua nova senha de 6 dígitos:');
+      if (!nova || nova.trim().length < 6) return alert('A senha precisa ter no mínimo 6 dígitos!');
+
+      const { error } = await supabaseClient
+        .from('usuarios_sistema')
+        .update({ senha: nova.trim(), senha_provisoria: false })
+        .eq('id', usuarioId);
+
+      if (error) return alert('Erro ao alterar senha: ' + error.message);
+      alert('Sua senha foi alterada com sucesso!');
+    }
+
+    function sairMaster() {
+      sessionStorage.clear();
+      window.location.href = 'login.html';
+    }
+
+    protegerEIniciarMaster();
+  </script>
+</body>
+</html>
