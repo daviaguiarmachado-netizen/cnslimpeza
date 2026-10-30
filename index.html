@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Solicitação de Materiais - CNS Limpeza</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800">
+
+  <header class="bg-blue-900 text-white shadow">
+    <div class="max-w-5xl mx-auto px-4 py-4 flex justify-between items-center">
+      <div>
+        <h1 class="text-xl font-bold">Solicitação de Materiais</h1>
+        <p class="text-xs text-blue-200">Produtos de Limpeza, Consumo e Equipamentos</p>
+      </div>
+      <a href="master.html" class="bg-blue-800 hover:bg-blue-700 text-xs px-3 py-2 rounded font-semibold border border-blue-600">
+        Acesso Master (Admin)
+      </a>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto px-4 py-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+    
+    <div class="md:col-span-2 space-y-6">
+      <div class="bg-white p-6 rounded-lg shadow-sm border">
+        <h2 class="text-lg font-bold mb-4 text-slate-700 border-b pb-2">1. Dados do Solicitante</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Escolha a Igreja</label>
+            <select id="select-igreja" class="w-full border rounded px-3 py-2 text-sm bg-white"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Seu Nome / Responsável</label>
+            <input type="text" id="input-responsavel" placeholder="Ex: João Silva" class="w-full border rounded px-3 py-2 text-sm" />
+          </div>
+        </div>
+
+        <h2 class="text-lg font-bold mt-6 mb-4 text-slate-700 border-b pb-2">2. Adicionar Produtos ao Pedido</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Produto (Saldo Disponível)</label>
+            <select id="select-produto" class="w-full border rounded px-3 py-2 text-sm bg-white"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Quantidade</label>
+            <input type="number" id="input-qtd" min="1" value="1" class="w-full border rounded px-3 py-2 text-sm" />
+          </div>
+          <button onclick="adicionarAoCarrinho()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded text-sm">
+            + Incluir
+          </button>
+        </div>
+
+        <div class="mt-6">
+          <h3 class="text-xs font-bold uppercase text-slate-500 mb-2">Itens do Pedido Atual</h3>
+          <table class="w-full text-sm border rounded overflow-hidden">
+            <thead class="bg-slate-50 border-b text-left text-xs uppercase text-slate-600">
+              <tr>
+                <th class="p-2">Produto</th>
+                <th class="p-2 text-center">Qtd</th>
+                <th class="p-2 text-right">Ação</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-carrinho" class="divide-y">
+              <tr><td colspan="3" class="p-4 text-center text-slate-400">Nenhum item adicionado ainda.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <button onclick="enviarPedido()" class="mt-6 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded shadow">
+          Enviar Pedido para o Controle Master
+        </button>
+      </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow-sm border self-start">
+      <h2 class="text-base font-bold mb-4 text-slate-700 border-b pb-2">Últimos Pedidos Ativos</h2>
+      <div id="lista-pedidos-recentes" class="space-y-3 text-sm">
+        Carregando...
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    let carrinho = [];
+    let listaEstoque = [];
+
+    async function carregarDadosIniciais() {
+      // Carrega Igrejas
+      const { data: igrejas } = await supabaseClient.from('igrejas').select('*').order('nome');
+      const selIgreja = document.getElementById('select-igreja');
+      selIgreja.innerHTML = '<option value="">Selecione a Igreja...</option>';
+      (igrejas || []).forEach(ig => {
+        selIgreja.innerHTML += `<option value="${ig.id}">${ig.nome}</option>`;
+      });
+
+      // Carrega Produtos com Saldo Atual
+      const { data: saldos } = await supabaseClient.from('vw_saldo_estoque').select('*').order('produto');
+      listaEstoque = saldos || [];
+      const selProd = document.getElementById('select-produto');
+      selProd.innerHTML = '<option value="">Selecione o Produto...</option>';
+      listaEstoque.forEach(p => {
+        const saldo = Number(p.saldo_atual);
+        if (saldo <= 0) {
+          selProd.innerHTML += `<option value="${p.produto_id}" disabled class="text-red-500">${p.produto} - SEM ESTOQUE (0)</option>`;
+        } else {
+          selProd.innerHTML += `<option value="${p.produto_id}">${p.produto} (Disponível: ${saldo})</option>`;
+        }
+      });
+
+      carregarPedidosRecentes();
+    }
+
+    function adicionarAoCarrinho() {
+      const prodId = document.getElementById('select-produto').value;
+      const qtd = parseInt(document.getElementById('input-qtd').value);
+      if (!prodId || isNaN(qtd) || qtd <= 0) return alert('Escolha um produto e informe uma quantidade válida.');
+
+      const prod = listaEstoque.find(p => p.produto_id == prodId);
+      if (!prod) return;
+
+      const saldoDisponivel = Number(prod.saldo_atual);
+      if (saldoDisponivel <= 0) {
+        return alert(`ATENÇÃO: O produto "${prod.produto}" não tem estoque disponível no momento!`);
+      }
+
+      const existente = carrinho.find(item => item.produto_id == prodId);
+      const qtdTotalDesejada = (existente ? existente.quantidade : 0) + qtd;
+
+      if (qtdTotalDesejada > saldoDisponivel) {
+        return alert(`ESTOQUE INSUFICIENTE!\n\nO produto "${prod.produto}" possui apenas ${saldoDisponivel} unidade(s) em estoque.`);
+      }
+
+      if (existente) {
+        existente.quantidade += qtd;
+      } else {
+        carrinho.push({
+          produto_id: prod.produto_id,
+          nome: prod.produto,
+          preco_unitario: prod.preco_padrao || 0,
+          quantidade: qtd
+        });
+      }
+      renderizarCarrinho();
+    }
+
+    function removerDoCarrinho(index) {
+      carrinho.splice(index, 1);
+      renderizarCarrinho();
+    }
+
+    function renderizarCarrinho() {
+      const tbody = document.getElementById('tabela-carrinho');
+      if (carrinho.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-slate-400">Nenhum item adicionado ainda.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = carrinho.map((item, idx) => `
+        <tr>
+          <td class="p-2 font-medium">${item.nome}</td>
+          <td class="p-2 text-center">${item.quantidade}</td>
+          <td class="p-2 text-right">
+            <button onclick="removerDoCarrinho(${idx})" class="text-red-600 text-xs font-bold hover:underline">Remover</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function enviarPedido() {
+      const igreja_id = document.getElementById('select-igreja').value;
+      const responsavel = document.getElementById('input-responsavel').value.trim();
+
+      if (!igreja_id) return alert('Selecione a Igreja!');
+      if (!responsavel) return alert('Informe o seu nome!');
+      if (carrinho.length === 0) return alert('Adicione pelo menos 1 produto ao pedido!');
+
+      const { data: novoPedido, error: erroPedido } = await supabaseClient
+        .from('pedidos')
+        .insert([{ igreja_id, responsavel, status: 'pendente' }])
+        .select()
+        .single();
+
+      if (erroPedido) return alert('Erro ao criar pedido: ' + erroPedido.message);
+
+      const itensParaInserir = carrinho.map(item => ({
+        pedido_id: novoPedido.id,
+        produto_id: item.produto_id,
+        quantidade: item.quantidade,
+        preco_unitario: item.preco_unitario
+      }));
+
+      const { error: erroItens } = await supabaseClient.from('pedido_itens').insert(itensParaInserir);
+      if (erroItens) return alert('Erro ao salvar itens: ' + erroItens.message);
+
+      alert('Pedido enviado com sucesso! Aguarde a aprovação do Master.');
+      carrinho = [];
+      document.getElementById('input-responsavel').value = '';
+      renderizarCarrinho();
+      carregarDadosIniciais();
+    }
+
+    async function carregarPedidosRecentes() {
+      const { data: pedidos } = await supabaseClient
+        .from('pedidos')
+        .select('id, responsavel, status, data_pedido, igrejas(nome)')
+        .order('id', { ascending: false })
+        .limit(8);
+
+      const div = document.getElementById('lista-pedidos-recentes');
+      if (!pedidos || pedidos.length === 0) {
+        div.innerHTML = '<p class="text-slate-400">Nenhum pedido registrado.</p>';
+        return;
+      }
+
+      const coresStatus = {
+        pendente: 'bg-amber-100 text-amber-800',
+        aprovado: 'bg-blue-100 text-blue-800',
+        entregue: 'bg-emerald-100 text-emerald-800'
+      };
+
+      div.innerHTML = pedidos.map(p => `
+        <div class="border rounded p-3 flex justify-between items-center">
+          <div>
+            <p class="font-bold text-slate-700">#${p.id} - ${p.igrejas?.nome || 'Igreja'}</p>
+            <p class="text-xs text-slate-500">Solicitante: ${p.responsavel || '-'}</p>
+          </div>
+          <span class="px-2 py-1 rounded text-xs font-bold uppercase ${coresStatus[p.status] || 'bg-slate-100'}">
+            ${p.status}
+          </span>
+        </div>
+      `).join('');
+    }
+
+    carregarDadosIniciais();
+  </script>
+</body>
+</html>
