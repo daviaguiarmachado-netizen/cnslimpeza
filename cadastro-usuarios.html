@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gerenciador de Acesso - CNS Limpeza</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800">
+
+  <header class="bg-indigo-950 text-white shadow">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-2">
+      <div class="flex items-center gap-3">
+        <img src="logo.jpg" alt="Logo" class="h-10 bg-white p-0.5 rounded" onerror="this.style.display='none'" />
+        <div>
+          <h1 class="text-lg font-bold">GERENCIADOR DE ACESSO E SENHAS</h1>
+          <p class="text-xs text-indigo-300">Acesso Total: Usuários vinculados por Setor e Cidade</p>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <a href="master.html" class="bg-blue-700 hover:bg-blue-600 text-xs px-3 py-2 rounded font-bold">
+          Ir para Painel Master
+        </a>
+        <a href="index.html" class="bg-emerald-700 hover:bg-emerald-600 text-xs px-3 py-2 rounded font-bold">
+          Ir para Tela de Pedidos
+        </a>
+        <button onclick="alterarMinhaPropriaSenha()" class="bg-indigo-800 hover:bg-indigo-700 text-xs px-3 py-2 rounded font-semibold">
+          Alterar Minha Senha
+        </button>
+        <button onclick="sair()" class="bg-red-600 hover:bg-red-700 text-xs px-3 py-2 rounded font-bold">
+          Sair
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+
+    <div class="bg-white p-6 rounded border shadow-sm self-start space-y-3">
+      <h2 class="font-bold text-slate-700 uppercase text-sm border-b pb-2">Cadastrar Novo Usuário</h2>
+
+      <div>
+        <label class="block text-xs font-bold uppercase mb-1">Nome Completo</label>
+        <input type="text" id="cad-nome" placeholder="Ex: Chico da Silva" class="w-full border rounded p-2 text-sm" />
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold uppercase mb-1">Usuário para Login</label>
+        <input type="text" id="cad-username" placeholder="Ex: chico" class="w-full border rounded p-2 text-sm" />
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold uppercase mb-1">Senha Inicial (6 dígitos)</label>
+        <input type="text" id="cad-senha" maxlength="6" placeholder="123456" class="w-full border rounded p-2 text-sm font-mono" />
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold uppercase mb-1">Perfil de Acesso</label>
+        <select id="cad-role" class="w-full border rounded p-2 text-sm bg-white">
+          <option value="encarregado">Encarregado (Somente Pedidos)</option>
+          <option value="coordenador">Coordenador (Master + Pedidos)</option>
+          <option value="cadastro">Gerenciador de Acesso (Total)</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold uppercase mb-1">Igreja Vinculada</label>
+        <select id="cad-igreja" onchange="sincronizarSetorIgreja()" class="w-full border rounded p-2 text-sm bg-white"></select>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-bold uppercase mb-1">Setor</label>
+          <input type="text" id="cad-setor" value="SETOR 03" class="w-full border rounded p-2 text-sm uppercase bg-slate-50" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase mb-1">Cidade</label>
+          <input type="text" id="cad-cidade" value="Maringá PR" class="w-full border rounded p-2 text-sm bg-slate-50" />
+        </div>
+      </div>
+
+      <button onclick="salvarNovoUsuario()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded text-sm transition">
+        CADASTRAR USUÁRIO
+      </button>
+    </div>
+
+    <div class="md:col-span-2 bg-white p-6 rounded border shadow-sm space-y-4">
+      <div class="flex flex-wrap justify-between items-center gap-2 border-b pb-2">
+        <h2 class="font-bold text-slate-700 uppercase text-sm">Usuários Cadastrados</h2>
+        <input type="text" id="filtro-usr-texto" oninput="renderizarUsuarios()" placeholder="Filtrar por nome, login ou setor..." class="border rounded px-3 py-1 text-sm w-64" />
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm border">
+          <thead class="bg-slate-100 border-b text-left text-xs uppercase">
+            <tr>
+              <th class="p-2">Nome</th>
+              <th class="p-2">Login</th>
+              <th class="p-2">Perfil</th>
+              <th class="p-2">Igreja / Setor / Cidade</th>
+              <th class="p-2 text-center">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tabela-usuarios-corpo" class="divide-y"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    const usuarioId = sessionStorage.getItem('cns_usuario_id');
+    const usuarioRole = sessionStorage.getItem('cns_usuario_role');
+    let listaIgrejas = [];
+    let listaUsuarios = [];
+
+    function checarPermissao() {
+      if (!usuarioId) return window.location.href = 'login.html';
+      if (usuarioRole !== 'cadastro') {
+        window.location.href = (usuarioRole === 'coordenador') ? 'master.html' : 'index.html';
+        return;
+      }
+      carregarTudo();
+    }
+
+    async function carregarTudo() {
+      const { data: igs } = await supabaseClient.from('igrejas').select('*').order('nome');
+      listaIgrejas = igs || [];
+      const sel = document.getElementById('cad-igreja');
+      sel.innerHTML = '<option value="">Geral / Sem Igreja Específica</option>';
+      listaIgrejas.forEach(ig => {
+        sel.innerHTML += `<option value="${ig.id}">${ig.nome} (${ig.setor || 'SETOR 03'})</option>`;
+      });
+
+      const { data: usrs } = await supabaseClient.from('usuarios_sistema').select('*').order('nome');
+      listaUsuarios = usrs || [];
+      renderizarUsuarios();
+    }
+
+    function sincronizarSetorIgreja() {
+      const igId = document.getElementById('cad-igreja').value;
+      const ig = listaIgrejas.find(i => i.id == igId);
+      if (ig) {
+        document.getElementById('cad-setor').value = ig.setor || 'SETOR 03';
+        document.getElementById('cad-cidade').value = ig.cidade || 'Maringá PR';
+      }
+    }
+
+    function renderizarUsuarios() {
+      const busca = (document.getElementById('filtro-usr-texto')?.value || '').toLowerCase();
+      const filtrados = listaUsuarios.filter(u =>
+        u.nome.toLowerCase().includes(busca) ||
+        u.username.toLowerCase().includes(busca) ||
+        (u.setor || '').toLowerCase().includes(busca)
+      );
+
+      document.getElementById('tabela-usuarios-corpo').innerHTML = filtrados.map(u => {
+        const ig = listaIgrejas.find(i => i.id == u.igreja_id);
+        const infoLocal = `${ig ? ig.nome : 'Geral'} | ${u.setor || 'SETOR 03'} (${u.cidade || 'Maringá PR'})`;
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="p-2 font-medium">${u.nome}</td>
+            <td class="p-2 text-xs font-mono font-bold">${u.username}</td>
+            <td class="p-2"><span class="px-2 py-0.5 rounded text-xs font-bold uppercase bg-slate-200">${u.role}</span></td>
+            <td class="p-2 text-xs">${infoLocal}</td>
+            <td class="p-2 text-center space-x-1 whitespace-nowrap">
+              <button onclick="reiniciarSenhaProvisoria(${u.id}, '${u.username}')" class="bg-amber-500 hover:bg-amber-600 text-white text-xs px-2 py-1 rounded font-bold">Reiniciar Senha</button>
+              <button onclick="deletarUsuario(${u.id})" class="text-red-600 text-xs font-bold hover:underline">Excluir</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function salvarNovoUsuario() {
+      const nome = document.getElementById('cad-nome').value.trim();
+      const username = document.getElementById('cad-username').value.trim().toLowerCase().replace(/\s+/g, '');
+      const senha = document.getElementById('cad-senha').value.trim();
+      const role = document.getElementById('cad-role').value;
+      const igreja_id = document.getElementById('cad-igreja').value ? parseInt(document.getElementById('cad-igreja').value) : null;
+      const setor = document.getElementById('cad-setor').value.trim().toUpperCase() || 'SETOR 03';
+      const cidade = document.getElementById('cad-cidade').value.trim() || 'Maringá PR';
+
+      if (!nome || !username || senha.length < 6) return alert('Preencha nome, login e senha de 6 dígitos!');
+
+      const { error } = await supabaseClient.from('usuarios_sistema').insert([{
+        nome, username, senha, role, igreja_id, setor, cidade, senha_provisoria: true
+      }]);
+
+      if (error) return alert('Erro: ' + error.message);
+      alert(`Usuário "${username}" cadastrado no ${setor}!`);
+      document.getElementById('cad-nome').value = '';
+      document.getElementById('cad-username').value = '';
+      document.getElementById('cad-senha').value = '';
+      carregarTudo();
+    }
+
+    async function reiniciarSenhaProvisoria(id, username) {
+      const nova = prompt(`Nova SENHA PROVISÓRIA (6 dígitos) para "${username}":`, '123456');
+      if (!nova || nova.trim().length < 6) return;
+      await supabaseClient.from('usuarios_sistema').update({ senha: nova.trim(), senha_provisoria: true }).eq('id', id);
+      alert('Senha reiniciada com sucesso!');
+      carregarTudo();
+    }
+
+    async function deletarUsuario(id) {
+      if (!confirm('Deseja excluir este usuário?')) return;
+      await supabaseClient.from('usuarios_sistema').delete().eq('id', id);
+      carregarTudo();
+    }
+
+    async function alterarMinhaPropriaSenha() {
+      const nova = prompt('Digite sua nova senha (6 dígitos):');
+      if (!nova || nova.trim().length < 6) return;
+      await supabaseClient.from('usuarios_sistema').update({ senha: nova.trim(), senha_provisoria: false }).eq('id', usuarioId);
+      alert('Senha alterada!');
+    }
+
+    function sair() {
+      sessionStorage.clear();
+      window.location.href = 'login.html';
+    }
+
+    checarPermissao();
+  </script>
+</body>
+</html>
