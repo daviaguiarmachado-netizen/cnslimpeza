@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Solicitação de Materiais - CNS Limpeza</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800">
+
+  <header class="bg-blue-900 text-white shadow">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
+      <div class="flex items-center gap-3">
+        <img src="logo.jpg" alt="Logo" class="h-10 bg-white p-0.5 rounded" onerror="this.style.display='none'" />
+        <div>
+          <h1 class="text-xl font-bold">Solicitação de Materiais</h1>
+          <p class="text-xs text-blue-200" id="usuario-logado-texto">Conectado</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <a href="master.html" id="btn-ir-master" class="hidden bg-blue-800 hover:bg-blue-700 text-xs px-3 py-2 rounded font-bold border border-blue-600">
+          Ir para Painel Master
+        </a>
+        <a href="cadastro-usuarios.html" id="btn-ir-cadastro" class="hidden bg-indigo-700 hover:bg-indigo-600 text-xs px-3 py-2 rounded font-bold border border-indigo-500">
+          Gerenciar Acesso & Senhas
+        </a>
+        <button onclick="alterarMinhaSenha()" class="bg-blue-800 hover:bg-blue-700 text-xs px-3 py-2 rounded font-semibold border border-blue-600">
+          Alterar Minha Senha
+        </button>
+        <button onclick="sairDoSistema()" class="bg-red-600 hover:bg-red-700 text-xs px-3 py-2 rounded font-bold">
+          Sair
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+    
+    <div class="lg:col-span-2 space-y-6">
+      <div class="bg-white p-6 rounded-lg shadow-sm border">
+        <h2 class="text-lg font-bold mb-4 text-slate-700 border-b pb-2">1. Dados do Solicitante (SETOR 03 - Maringá PR)</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Igreja / Congregação</label>
+            <select id="select-igreja" class="w-full border rounded px-3 py-2 text-sm bg-white"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nome do Responsável</label>
+            <input type="text" id="input-responsavel" placeholder="Nome do solicitante" class="w-full border rounded px-3 py-2 text-sm bg-slate-50" readonly />
+          </div>
+        </div>
+
+        <h2 class="text-lg font-bold mt-6 mb-4 text-slate-700 border-b pb-2">2. Adicionar Produtos ao Pedido</h2>
+        
+        <div class="mb-3">
+          <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Filtrar Produtos por Categoria</label>
+          <select id="filtro-categoria-pedido" onchange="atualizarSelectProdutos()" class="w-full sm:w-64 border rounded px-3 py-1.5 text-sm bg-slate-50">
+            <option value="">Todas as Categorias</option>
+            <option value="QUIMICOS">QUIMICOS</option>
+            <option value="DESCARTÁVEIS">DESCARTÁVEIS</option>
+            <option value="ÁGUA">ÁGUA</option>
+            <option value="EPI">EPI (Sob Demanda)</option>
+            <option value="EQUIPAMENTOS">EQUIPAMENTOS (Sob Demanda)</option>
+            <option value="DIVERSOS">DIVERSOS (Sob Demanda)</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Escolha o Produto</label>
+            <select id="select-produto" class="w-full border rounded px-3 py-2 text-sm bg-white"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Quantidade</label>
+            <input type="number" id="input-qtd" min="1" placeholder="Qtd" class="w-full border rounded px-3 py-2 text-sm" />
+          </div>
+          <button onclick="adicionarAoCarrinho()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded text-sm">
+            + Incluir
+          </button>
+        </div>
+
+        <div class="mt-6">
+          <h3 class="text-xs font-bold uppercase text-slate-500 mb-2">Itens do Pedido Atual</h3>
+          <table class="w-full text-sm border rounded overflow-hidden">
+            <thead class="bg-slate-50 border-b text-left text-xs uppercase text-slate-600">
+              <tr>
+                <th class="p-2">Produto</th>
+                <th class="p-2 text-center">Qtd</th>
+                <th class="p-2 text-right">Ação</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-carrinho" class="divide-y">
+              <tr><td colspan="3" class="p-4 text-center text-slate-400">Nenhum item adicionado ainda.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <button onclick="enviarPedido()" class="mt-6 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded shadow transition">
+          Enviar Pedido para o Controle Master
+        </button>
+      </div>
+    </div>
+
+    <!-- Histórico ISOLADO: Mostra somente os pedidos DO USUÁRIO LOGADO para o nível Encarregado -->
+    <div class="bg-white p-6 rounded-lg shadow-sm border self-start">
+      <h2 class="text-base font-bold mb-1 text-slate-700">Meus Pedidos</h2>
+      <p class="text-xs text-slate-400 mb-4 border-b pb-2">Clique no pedido para discriminar os itens</p>
+      <div id="lista-pedidos-recentes" class="space-y-3 text-sm">
+        Carregando...
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    let carrinho = [];
+    let listaEstoque = [];
+    let abertosRecentes = {};
+
+    const usuarioId = sessionStorage.getItem('cns_usuario_id');
+    const usuarioNome = sessionStorage.getItem('cns_usuario_nome') || '';
+    const usuarioRole = sessionStorage.getItem('cns_usuario_role') || 'encarregado';
+    const usuarioIgreja = sessionStorage.getItem('cns_usuario_igreja');
+    const usuarioSetor = sessionStorage.getItem('cns_usuario_setor') || 'SETOR 03';
+
+    // Categorias que não dependem de saldo em estoque
+    const CATEGORIAS_SEM_ESTOQUE = ['EPI', 'EQUIPAMENTOS', 'DIVERSOS'];
+
+    function protegerEIniciar() {
+      if (!usuarioId) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      document.getElementById('usuario-logado-texto').innerText = `${usuarioNome} (${usuarioRole.toUpperCase()}) | ${usuarioSetor}`;
+      document.getElementById('input-responsavel').value = usuarioNome;
+
+      if (usuarioRole === 'coordenador' || usuarioRole === 'cadastro') {
+        document.getElementById('btn-ir-master').classList.remove('hidden');
+      }
+      if (usuarioRole === 'cadastro') {
+        document.getElementById('btn-ir-cadastro').classList.remove('hidden');
+      }
+
+      carregarDadosIniciais();
+    }
+
+    async function carregarDadosIniciais() {
+      const { data: igrejas } = await supabaseClient.from('igrejas').select('*').order('nome');
+      const selIgreja = document.getElementById('select-igreja');
+      selIgreja.innerHTML = '<option value="">Selecione a Igreja...</option>';
+      (igrejas || []).filter(ig => (ig.setor || 'SETOR 03') === usuarioSetor).forEach(ig => {
+        const selecionada = (usuarioIgreja && ig.id == usuarioIgreja) ? 'selected' : '';
+        selIgreja.innerHTML += `<option value="${ig.id}" ${selecionada}>${ig.nome} (${ig.setor || 'SETOR 03'})</option>`;
+      });
+
+      const { data: saldos } = await supabaseClient.from('vw_saldo_estoque').select('*').order('produto');
+      listaEstoque = saldos || [];
+      atualizarSelectProdutos();
+      carregarMeusPedidos();
+    }
+
+    function atualizarSelectProdutos() {
+      const cat = document.getElementById('filtro-categoria-pedido').value;
+      const selProd = document.getElementById('select-produto');
+      selProd.innerHTML = '<option value="">Selecione o Produto...</option>';
+
+      listaEstoque
+        .filter(p => !cat || (p.categoria || 'QUIMICOS') === cat)
+        .forEach(p => {
+          const saldo = Number(p.saldo_atual);
+          const categ = p.categoria || 'QUIMICOS';
+          const semEstoqueFisico = CATEGORIAS_SEM_ESTOQUE.includes(categ);
+
+          if (semEstoqueFisico) {
+            selProd.innerHTML += `<option value="${p.produto_id}">${p.produto} [${categ}] (Sob Demanda)</option>`;
+          } else if (saldo <= 0) {
+            selProd.innerHTML += `<option value="${p.produto_id}" disabled class="text-red-500">${p.produto} [${categ}] - (SEM ESTOQUE)</option>`;
+          } else {
+            selProd.innerHTML += `<option value="${p.produto_id}">${p.produto} [${categ}] (Disp: ${saldo})</option>`;
+          }
+        });
+    }
+
+    function adicionarAoCarrinho() {
+      const selProd = document.getElementById('select-produto');
+      const inputQtd = document.getElementById('input-qtd');
+      const prodId = selProd.value;
+      const qtd = parseInt(inputQtd.value);
+
+      if (!prodId || isNaN(qtd) || qtd <= 0) return alert('Escolha um produto e informe uma quantidade válida.');
+
+      const prod = listaEstoque.find(p => p.produto_id == prodId);
+      if (!prod) return;
+
+      const categ = prod.categoria || 'QUIMICOS';
+      const semEstoqueFisico = CATEGORIAS_SEM_ESTOQUE.includes(categ);
+      const saldoDisponivel = Number(prod.saldo_atual);
+
+      // Trava de saldo NÃO APLICA para EPI, EQUIPAMENTOS e DIVERSOS
+      if (!semEstoqueFisico) {
+        if (saldoDisponivel <= 0) return alert(`ATENÇÃO: "${prod.produto}" está SEM ESTOQUE!`);
+
+        const existente = carrinho.find(item => item.produto_id == prodId);
+        const qtdTotal = (existente ? existente.quantidade : 0) + qtd;
+
+        if (qtdTotal > saldoDisponivel) {
+          return alert(`ESTOQUE INSUFICIENTE!\nO produto "${prod.produto}" possui apenas ${saldoDisponivel} unidade(s) disponíveis.`);
+        }
+      }
+
+      const existente = carrinho.find(item => item.produto_id == prodId);
+      if (existente) {
+        existente.quantidade += qtd;
+      } else {
+        carrinho.push({
+          produto_id: prod.produto_id,
+          nome: prod.produto,
+          preco_unitario: prod.preco_padrao || 0,
+          quantidade: qtd
+        });
+      }
+
+      // Limpa os campos após incluir
+      selProd.value = '';
+      inputQtd.value = '';
+
+      renderizarCarrinho();
+    }
+
+    function removerDoCarrinho(index) {
+      carrinho.splice(index, 1);
+      renderizarCarrinho();
+    }
+
+    function renderizarCarrinho() {
+      const tbody = document.getElementById('tabela-carrinho');
+      if (carrinho.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-slate-400">Nenhum item adicionado ainda.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = carrinho.map((item, idx) => `
+        <tr>
+          <td class="p-2 font-medium">${item.nome}</td>
+          <td class="p-2 text-center font-bold">${item.quantidade}</td>
+          <td class="p-2 text-right">
+            <button onclick="removerDoCarrinho(${idx})" class="text-red-600 text-xs font-bold hover:underline">Remover</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function enviarPedido() {
+      const igreja_id = document.getElementById('select-igreja').value;
+      const responsavel = document.getElementById('input-responsavel').value.trim();
+
+      if (!igreja_id) return alert('Selecione a Igreja!');
+      if (!responsavel) return alert('Identificação do responsável não encontrada!');
+      if (carrinho.length === 0) return alert('Adicione pelo menos 1 item ao pedido!');
+
+      const { data: novoPedido, error: erroPedido } = await supabaseClient
+        .from('pedidos')
+        .insert([{
+          igreja_id,
+          responsavel: responsavel,
+          status: 'pendente',
+          setor: usuarioSetor
+        }])
+        .select()
+        .single();
+
+      if (erroPedido) return alert('Erro ao registrar pedido: ' + erroPedido.message);
+
+      const itens = carrinho.map(item => ({
+        pedido_id: novoPedido.id,
+        produto_id: item.produto_id,
+        quantidade: item.quantidade,
+        preco_unitario: item.preco_unitario
+      }));
+
+      await supabaseClient.from('pedido_itens').insert(itens);
+
+      alert('Pedido enviado com sucesso! Aguarde a aprovação do Coordenador.');
+      carrinho = [];
+      renderizarCarrinho();
+      carregarDadosIniciais();
+    }
+
+    function togglePedidoRecente(id) {
+      abertosRecentes[id] = !abertosRecentes[id];
+      carregarMeusPedidos();
+    }
+
+    // ISOLAMENTO DE ACESSO: Encarregado só vê os SEUS próprios pedidos!
+    async function carregarMeusPedidos() {
+      let query = supabaseClient.from('pedidos').select('*').order('id', { ascending: false });
+
+      // Se for encarregado, filtra estritamente pelo seu nome/login
+      if (usuarioRole === 'encarregado') {
+        query = query.eq('responsavel', usuarioNome);
+      }
+
+      const { data: pedidos } = await query.limit(15);
+      const { data: igrejas } = await supabaseClient.from('igrejas').select('*');
+      const { data: itens } = await supabaseClient.from('pedido_itens').select('*');
+
+      const div = document.getElementById('lista-pedidos-recentes');
+      if (!pedidos || pedidos.length === 0) {
+        div.innerHTML = '<p class="text-slate-400">Você ainda não possui pedidos registrados.</p>';
+        return;
+      }
+
+      const cores = {
+        pendente: 'bg-amber-100 text-amber-800',
+        aprovado: 'bg-blue-100 text-blue-800',
+        entregue: 'bg-emerald-100 text-emerald-800'
+      };
+
+      div.innerHTML = pedidos.map(p => {
+        const ig = (igrejas || []).find(i => i.id == p.igreja_id);
+        const itensPed = (itens || []).filter(i => i.pedido_id == p.id);
+        const aberto = !!abertosRecentes[p.id];
+
+        const subItensHtml = aberto ? `
+          <div class="mt-2 pt-2 border-t text-xs space-y-1 bg-slate-50 p-2 rounded">
+            <div class="font-bold text-slate-600 mb-1">Itens deste pedido:</div>
+            ${itensPed.map(it => {
+              const pr = listaEstoque.find(e => e.produto_id == it.produto_id);
+              return `<div class="flex justify-between"><span>• ${pr?.produto || 'Produto'}</span><span class="font-bold">${it.quantidade} un.</span></div>`;
+            }).join('')}
+          </div>
+        ` : '';
+
+        return `
+          <div class="border rounded p-3 hover:bg-slate-50 cursor-pointer transition" onclick="togglePedidoRecente(${p.id})">
+            <div class="flex justify-between items-center">
+              <div>
+                <p class="font-bold text-slate-700">${aberto ? '▼' : '▶'} #${p.id} - ${ig?.nome || 'Igreja'}</p>
+                <p class="text-xs text-slate-500">Data: ${p.data_pedido ? new Date(p.data_pedido).toLocaleDateString('pt-BR') : '-'}</p>
+              </div>
+              <span class="px-2 py-1 rounded text-xs font-bold uppercase ${cores[p.status] || 'bg-slate-100'}">
+                ${p.status}
+              </span>
+            </div>
+            ${subItensHtml}
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function alterarMinhaSenha() {
+      const novaSenha = prompt('Digite sua nova senha de 6 dígitos:');
+      if (!novaSenha || novaSenha.trim().length < 6) return alert('A senha precisa ter no mínimo 6 dígitos!');
+      await supabaseClient.from('usuarios_sistema').update({ senha: novaSenha.trim(), senha_provisoria: false }).eq('id', usuarioId);
+      alert('Sua senha foi alterada com sucesso!');
+    }
+
+    function sairDoSistema() {
+      sessionStorage.clear();
+      window.location.href = 'login.html';
+    }
+
+    protegerEIniciar();
+  </script>
+</body>
+</html>
