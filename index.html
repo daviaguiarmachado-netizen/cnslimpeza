@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Solicitação de Materiais - CNS Limpeza</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800">
+
+  <header class="bg-blue-900 text-white shadow">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
+      <div class="flex items-center gap-3">
+        <img src="logo.jpg" alt="CCB" class="h-10 rounded bg-white p-0.5 object-contain" onerror="this.style.display='none'" />
+        <div>
+          <h1 class="text-xl font-bold">Solicitação de Materiais</h1>
+          <p class="text-xs text-blue-200" id="usuario-logado-texto">Conectado</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <a href="master.html" id="btn-ir-master" class="hidden bg-blue-800 hover:bg-blue-700 text-xs px-3 py-2 rounded font-bold border border-blue-600">
+          Ir para Painel Master
+        </a>
+        <a href="cadastro-usuarios.html" id="btn-ir-cadastro" class="hidden bg-indigo-700 hover:bg-indigo-600 text-xs px-3 py-2 rounded font-bold border border-indigo-500">
+          Gerenciar Acesso & Senhas
+        </a>
+        <button onclick="alterarMinhaSenha()" class="bg-blue-800 hover:bg-blue-700 text-xs px-3 py-2 rounded font-semibold border border-blue-600">
+          Alterar Minha Senha
+        </button>
+        <button onclick="sairDoSistema()" class="bg-red-600 hover:bg-red-700 text-xs px-3 py-2 rounded font-bold">
+          Sair
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+    
+    <div class="md:col-span-2 space-y-6">
+      <div class="bg-white p-6 rounded-lg shadow-sm border">
+        <h2 class="text-lg font-bold mb-4 text-slate-700 border-b pb-2">1. Dados do Solicitante (<span id="label-setor-atual">SETOR 03</span>)</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Igreja / Congregação</label>
+            <select id="select-igreja" class="w-full border rounded px-3 py-2 text-sm bg-white"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nome do Responsável</label>
+            <input type="text" id="input-responsavel" placeholder="Nome do solicitante" class="w-full border rounded px-3 py-2 text-sm" />
+          </div>
+        </div>
+
+        <h2 class="text-lg font-bold mt-6 mb-4 text-slate-700 border-b pb-2">2. Adicionar Produtos ao Pedido</h2>
+        
+        <!-- Filtro de Categoria na tela de pedido -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Filtrar por Categoria</label>
+            <select id="filtro-cat-pedido" onchange="atualizarSelectProdutos()" class="w-full border rounded px-3 py-1.5 text-xs bg-slate-50">
+              <option value="">TODAS AS CATEGORIAS</option>
+              <option value="QUIMICOS">QUIMICOS</option>
+              <option value="EPI">EPI</option>
+              <option value="EQUIPAMENTOS">EQUIPAMENTOS</option>
+              <option value="DESCARTÁVEIS">DESCARTÁVEIS</option>
+              <option value="ÁGUA">ÁGUA</option>
+              <option value="DIVERSOS">DIVERSOS</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Pesquisar Produto</label>
+            <input type="text" id="busca-prod-pedido" oninput="atualizarSelectProdutos()" placeholder="Digite parte do nome..." class="w-full border rounded px-3 py-1.5 text-xs" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Escolha o Produto</label>
+            <select id="select-produto" class="w-full border rounded px-3 py-2 text-sm bg-white"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Quantidade</label>
+            <input type="number" id="input-qtd" min="1" placeholder="Qtd" class="w-full border rounded px-3 py-2 text-sm" />
+          </div>
+          <button onclick="adicionarAoCarrinho()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded text-sm">
+            + Incluir
+          </button>
+        </div>
+
+        <div class="mt-6">
+          <h3 class="text-xs font-bold uppercase text-slate-500 mb-2">Itens do Pedido Atual</h3>
+          <table class="w-full text-sm border rounded overflow-hidden">
+            <thead class="bg-slate-50 border-b text-left text-xs uppercase text-slate-600">
+              <tr>
+                <th class="p-2">Produto</th>
+                <th class="p-2 text-center">Qtd</th>
+                <th class="p-2 text-right">Ação</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-carrinho" class="divide-y">
+              <tr><td colspan="3" class="p-4 text-center text-slate-400">Nenhum item adicionado ainda.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <button onclick="enviarPedido()" class="mt-6 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded shadow transition">
+          Enviar Pedido para o Controle Master
+        </button>
+      </div>
+    </div>
+
+    <!-- Coluna Direita: Pedidos com Sublinhas ao Clicar -->
+    <div class="bg-white p-6 rounded-lg shadow-sm border self-start">
+      <h2 class="text-base font-bold mb-1 text-slate-700">Pedidos do Setor</h2>
+      <p class="text-xs text-slate-400 mb-3 border-b pb-2">Clique em cima de um pedido para abrir os itens</p>
+      <input type="text" id="filtro-meus-pedidos" oninput="renderizarPedidosRecentes()" placeholder="Filtrar pedidos..." class="w-full border rounded px-2.5 py-1.5 text-xs mb-3" />
+      <div id="lista-pedidos-recentes" class="space-y-2 text-sm">
+        Carregando...
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    let carrinho = [];
+    let listaEstoque = [];
+    let pedidosSetorCache = [];
+
+    const usuarioId = sessionStorage.getItem('cns_usuario_id');
+    const usuarioNome = sessionStorage.getItem('cns_usuario_nome');
+    const usuarioRole = sessionStorage.getItem('cns_usuario_role');
+    const usuarioIgreja = sessionStorage.getItem('cns_usuario_igreja');
+    const usuarioSetor = sessionStorage.getItem('cns_usuario_setor') || 'SETOR 03';
+    const usuarioCidade = sessionStorage.getItem('cns_usuario_cidade') || 'Maringá PR';
+
+    function protegerEIniciar() {
+      if (!usuarioId) return window.location.href = 'login.html';
+
+      document.getElementById('usuario-logado-texto').innerText = `${usuarioNome} | ${usuarioSetor} - ${usuarioCidade}`;
+      document.getElementById('label-setor-atual').innerText = `${usuarioSetor} - ${usuarioCidade}`;
+      document.getElementById('input-responsavel').value = usuarioNome;
+
+      if (usuarioRole === 'coordenador' || usuarioRole === 'cadastro') {
+        document.getElementById('btn-ir-master').classList.remove('hidden');
+      }
+      if (usuarioRole === 'cadastro') {
+        document.getElementById('btn-ir-cadastro').classList.remove('hidden');
+      }
+
+      carregarDadosIniciais();
+    }
+
+    async function carregarDadosIniciais() {
+      // 1. Carrega apenas igrejas do mesmo Setor do usuário
+      const { data: igrejas } = await supabaseClient
+        .from('igrejas')
+        .select('*')
+        .eq('setor', usuarioSetor)
+        .order('nome');
+
+      const selIgreja = document.getElementById('select-igreja');
+      selIgreja.innerHTML = '<option value="">Selecione a Igreja...</option>';
+      (igrejas || []).forEach(ig => {
+        const selecionada = (usuarioIgreja && ig.id == usuarioIgreja) ? 'selected' : '';
+        selIgreja.innerHTML += `<option value="${ig.id}" ${selecionada}>${ig.nome} (${ig.cidade || 'Maringá PR'})</option>`;
+      });
+
+      // 2. Calcula o Saldo exclusivo do Setor do usuário
+      const { data: prods } = await supabaseClient.from('produtos').select('*').order('nome');
+      const { data: entradas } = await supabaseClient.from('entradas_estoque').select('produto_id, quantidade').eq('setor', usuarioSetor);
+      const { data: saidas } = await supabaseClient
+        .from('pedido_itens')
+        .select('produto_id, quantidade, pedidos!inner(status, setor)')
+        .eq('pedidos.setor', usuarioSetor)
+        .in('pedidos.status', ['aprovado', 'entregue']);
+
+      const mapaEnt = {};
+      (entradas || []).forEach(e => mapaEnt[e.produto_id] = (mapaEnt[e.produto_id] || 0) + Number(e.quantidade));
+      const mapaSai = {};
+      (saidas || []).forEach(s => mapaSai[s.produto_id] = (mapaSai[s.produto_id] || 0) + Number(s.quantidade));
+
+      listaEstoque = (prods || []).map(p => ({
+        produto_id: p.id,
+        produto: p.nome,
+        marca: p.marca || 'DIVERSAS',
+        categoria: p.categoria || 'QUIMICOS',
+        preco_padrao: p.preco_padrao || 0,
+        saldo_atual: (mapaEnt[p.id] || 0) - (mapaSai[p.id] || 0)
+      }));
+
+      atualizarSelectProdutos();
+      carregarPedidosRecentes();
+    }
+
+    function atualizarSelectProdutos() {
+      const catFiltro = document.getElementById('filtro-cat-pedido').value;
+      const busca = (document.getElementById('busca-prod-pedido').value || '').toLowerCase();
+      const selProd = document.getElementById('select-produto');
+      selProd.innerHTML = '<option value="">Selecione o Produto...</option>';
+
+      listaEstoque
+        .filter(p => (!catFiltro || p.categoria === catFiltro) && p.produto.toLowerCase().includes(busca))
+        .forEach(p => {
+          const saldo = Number(p.saldo_atual);
+          if (saldo <= 0) {
+            selProd.innerHTML += `<option value="${p.produto_id}" disabled class="text-red-500">${p.produto} [${p.categoria}] - (SEM ESTOQUE)</option>`;
+          } else {
+            selProd.innerHTML += `<option value="${p.produto_id}">${p.produto} [${p.categoria}] (Disp: ${saldo})</option>`;
+          }
+        });
+    }
+
+    function adicionarAoCarrinho() {
+      const selProd = document.getElementById('select-produto');
+      const inputQtd = document.getElementById('input-qtd');
+      const prodId = selProd.value;
+      const qtd = parseInt(inputQtd.value);
+
+      if (!prodId || isNaN(qtd) || qtd <= 0) {
+        return alert('Escolha um produto e informe uma quantidade válida.');
+      }
+
+      const prod = listaEstoque.find(p => p.produto_id == prodId);
+      if (!prod) return;
+
+      const saldoDisponivel = Number(prod.saldo_atual);
+      if (saldoDisponivel <= 0) return alert(`ATENÇÃO: "${prod.produto}" está SEM ESTOQUE!`);
+
+      const existente = carrinho.find(item => item.produto_id == prodId);
+      const qtdTotal = (existente ? existente.quantidade : 0) + qtd;
+
+      if (qtdTotal > saldoDisponivel) {
+        return alert(`ESTOQUE INSUFICIENTE!\nO produto "${prod.produto}" tem apenas ${saldoDisponivel} unidade(s) disponíveis.`);
+      }
+
+      if (existente) {
+        existente.quantidade += qtd;
+      } else {
+        carrinho.push({
+          produto_id: prod.produto_id,
+          nome: prod.produto,
+          preco_unitario: prod.preco_padrao || 0,
+          quantidade: qtd
+        });
+      }
+
+      // LIMPA O PRODUTO E A QUANTIDADE AUTOMATICAMENTE APÓS INCLUIR
+      selProd.value = '';
+      inputQtd.value = '';
+
+      renderizarCarrinho();
+    }
+
+    function removerDoCarrinho(index) {
+      carrinho.splice(index, 1);
+      renderizarCarrinho();
+    }
+
+    function renderizarCarrinho() {
+      const tbody = document.getElementById('tabela-carrinho');
+      if (carrinho.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-slate-400">Nenhum item adicionado ainda.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = carrinho.map((item, idx) => `
+        <tr>
+          <td class="p-2 font-medium">${item.nome}</td>
+          <td class="p-2 text-center font-bold">${item.quantidade}</td>
+          <td class="p-2 text-right">
+            <button onclick="removerDoCarrinho(${idx})" class="text-red-600 text-xs font-bold hover:underline">Remover</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function enviarPedido() {
+      const igreja_id = document.getElementById('select-igreja').value;
+      const responsavel = document.getElementById('input-responsavel').value.trim();
+
+      if (!igreja_id) return alert('Selecione a Igreja!');
+      if (!responsavel) return alert('Informe o nome do responsável!');
+      if (carrinho.length === 0) return alert('Adicione pelo menos 1 item!');
+
+      const { data: novoPedido, error: erroPedido } = await supabaseClient
+        .from('pedidos')
+        .insert([{ igreja_id, responsavel, status: 'pendente', setor: usuarioSetor }])
+        .select()
+        .single();
+
+      if (erroPedido) return alert('Erro ao registrar pedido: ' + erroPedido.message);
+
+      const itens = carrinho.map(item => ({
+        pedido_id: novoPedido.id,
+        produto_id: item.produto_id,
+        quantidade: item.quantidade,
+        preco_unitario: item.preco_unitario
+      }));
+
+      await supabaseClient.from('pedido_itens').insert(itens);
+
+      alert('Pedido enviado com sucesso! Aguarde a aprovação.');
+      carrinho = [];
+      renderizarCarrinho();
+      carregarDadosIniciais();
+    }
+
+    async function carregarPedidosRecentes() {
+      const { data: pedidos } = await supabaseClient
+        .from('pedidos')
+        .select('id, responsavel, status, data_pedido, igrejas(nome), pedido_itens(quantidade, preco_unitario, produtos(nome, marca, categoria))')
+        .eq('setor', usuarioSetor)
+        .order('id', { ascending: false })
+        .limit(20);
+
+      pedidosSetorCache = pedidos || [];
+      renderizarPedidosRecentes();
+    }
+
+    function renderizarPedidosRecentes() {
+      const termo = (document.getElementById('filtro-meus-pedidos').value || '').toLowerCase();
+      const div = document.getElementById('lista-pedidos-recentes');
+
+      const filtrados = pedidosSetorCache.filter(p => {
+        const texto = `#${p.id} ${p.igrejas?.nome || ''} ${p.responsavel || ''} ${p.status}`.toLowerCase();
+        return texto.includes(termo);
+      });
+
+      if (filtrados.length === 0) {
+        div.innerHTML = '<p class="text-slate-400">Nenhum pedido encontrado.</p>';
+        return;
+      }
+
+      const cores = {
+        pendente: 'bg-amber-100 text-amber-800',
+        aprovado: 'bg-blue-100 text-blue-800',
+        entregue: 'bg-emerald-100 text-emerald-800'
+      };
+
+      div.innerHTML = filtrados.map(p => {
+        const sublinhas = (p.pedido_itens || []).map(i => `
+          <li class="flex justify-between py-1 border-b last:border-0 text-xs text-slate-600">
+            <span><b>${i.quantidade}x</b> ${i.produtos?.nome || 'Item'}</span>
+            <span class="text-slate-400">${i.produtos?.categoria || ''}</span>
+          </li>
+        `).join('');
+
+        return `
+          <div class="border rounded overflow-hidden">
+            <div onclick="toggleSublinhaPedido(${p.id})" class="p-3 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
+              <div>
+                <p class="font-bold text-slate-700">#${p.id} - ${p.igrejas?.nome || 'Igreja'}</p>
+                <p class="text-xs text-slate-500">Solicitante: ${p.responsavel || '-'} <span class="text-blue-600 font-semibold ml-1">(Ver itens ▼)</span></p>
+              </div>
+              <span class="px-2 py-1 rounded text-xs font-bold uppercase ${cores[p.status] || 'bg-slate-100'}">
+                ${p.status}
+              </span>
+            </div>
+            <div id="sublinha-user-${p.id}" class="hidden bg-slate-50 px-3 py-2 border-t">
+              <p class="text-[11px] font-bold uppercase text-slate-500 mb-1">Itens Discriminados do Pedido #${p.id}:</p>
+              <ul>${sublinhas || '<li class="text-xs text-slate-400">Sem itens</li>'}</ul>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function toggleSublinhaPedido(id) {
+      const el = document.getElementById('sublinha-user-' + id);
+      if (el) el.classList.toggle('hidden');
+    }
+
+    async function alterarMinhaSenha() {
+      const novaSenha = prompt('Digite sua nova senha de 6 dígitos:');
+      if (!novaSenha || novaSenha.trim().length < 6) return alert('Mínimo 6 dígitos!');
+      await supabaseClient.from('usuarios_sistema').update({ senha: novaSenha.trim(), senha_provisoria: false }).eq('id', usuarioId);
+      alert('Sua senha foi alterada com sucesso!');
+    }
+
+    function sairDoSistema() {
+      sessionStorage.clear();
+      window.location.href = 'login.html';
+    }
+
+    protegerEIniciar();
+  </script>
+</body>
+</html>
