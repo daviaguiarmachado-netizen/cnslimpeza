@@ -987,7 +987,7 @@
     }
 
     // Alterna com 1 clique se o produto é Sob Demanda ou Com Estoque
-    async function<u> alternarRegimeEstoque</u>(id, estadoAtual) {
+    async function alternarRegimeEstoque(id, estadoAtual) { 
       const novoEstado = !estadoAtual;
       const { error } = await supabaseClient
         .from('produtos')
