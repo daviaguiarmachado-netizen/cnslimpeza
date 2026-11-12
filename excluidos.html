@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pedidos Excluídos (Lixeira) - CNS Limpeza</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800">
+
+  <header class="bg-slate-900 text-white shadow">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
+      <div class="flex items-center gap-3">
+        <img src="logo.jpg" alt="Logo" class="h-10 bg-white p-0.5 rounded" onerror="this.style.display='none'" />
+        <div>
+          <h1 class="text-lg font-bold">LIXEIRA DE PEDIDOS (DESFAZER EXCLUSÃO)</h1>
+          <p class="text-xs text-slate-400">Recupere pedidos que foram recusados ou apagados</p>
+        </div>
+      </div>
+      <a href="master.html" class="bg-blue-600 hover:bg-blue-500 text-xs px-4 py-2 rounded font-bold">
+        &larr; Voltar para o Painel Master
+      </a>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6">
+    <div class="bg-white p-6 rounded-lg border shadow-sm space-y-4">
+      <div class="flex flex-wrap justify-between items-center gap-3 border-b pb-3">
+        <div>
+          <h2 class="text-base font-bold uppercase text-slate-700">Pedidos Recusados / Excluídos</h2>
+          <p class="text-xs text-slate-500">Ao restaurar, o pedido volta para a lista principal com o status <b>Pendente</b>.</p>
+        </div>
+        <input type="text" id="filtro-lixeira" oninput="renderizarLixeira()" placeholder="Filtrar por nº, igreja ou solicitante..." class="border rounded px-3 py-1.5 text-sm w-full sm:w-72" />
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm border">
+          <thead class="bg-slate-100 border-b text-left text-xs uppercase">
+            <tr>
+              <th class="p-3">Nº Original</th>
+              <th class="p-3">Data Pedido</th>
+              <th class="p-3">Excluído em</th>
+              <th class="p-3">Igreja / Setor</th>
+              <th class="p-3">Solicitante</th>
+              <th class="p-3">Itens do Pedido</th>
+              <th class="p-3 text-center">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tabela-lixeira" class="divide-y">
+            <tr><td colspan="7" class="p-4 text-center text-slate-400">Carregando lixeira...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    let excluidosCache = [];
+    let igrejasCache = [];
+    let produtosCache = [];
+
+    const usuarioId = sessionStorage.getItem('cns_usuario_id');
+    const usuarioRole = sessionStorage.getItem('cns_usuario_role');
+
+    async function iniciarLixeira() {
+      if (!usuarioId || (usuarioRole !== 'coordenador' && usuarioRole !== 'cadastro')) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      const [resIg, resProd, resPed, resItens] = await Promise.all([
+        supabaseClient.from('igrejas').select('*'),
+        supabaseClient.from('produtos').select('*'),
+        supabaseClient.from('pedidos_excluidos').select('*').order('data_exclusao', { ascending: false }),
+        supabaseClient.from('pedido_itens_excluidos').select('*')
+      ]);
+
+      igrejasCache = resIg.data || [];
+      produtosCache = resProd.data || [];
+      const itensExcl = resItens.data || [];
+
+      excluidosCache = (resPed.data || []).map(p => {
+        const ig = igrejasCache.find(i => i.id == p.igreja_id);
+        const itensDoPed = itensExcl.filter(it => it.pedido_id == p.id).map(it => {
+          const pr = produtosCache.find(prod => prod.id == it.produto_id);
+          return { ...it, produto_nome: pr?.nome || 'Produto #' + it.produto_id };
+        });
+        return { ...p, igreja_obj: ig, itens: itensDoPed };
+      });
+
+      renderizarLixeira();
+    }
+
+    function renderizarLixeira() {
+      const busca = (document.getElementById('filtro-lixeira')?.value || '').toLowerCase();
+      const filtrados = excluidosCache.filter(p => {
+        const igNome = (p.igreja_obj?.nome || '').toLowerCase();
+        const resp = (p.responsavel || '').toLowerCase();
+        return String(p.id).includes(busca) || igNome.includes(busca) || resp.includes(busca);
+      });
+
+      const tbody = document.getElementById('tabela-lixeira');
+      if (filtrados.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-400">Nenhum pedido na lixeira.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filtrados.map
