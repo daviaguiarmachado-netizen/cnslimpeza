@@ -32,6 +32,9 @@
         <a href="index.html" class="bg-emerald-700 hover:bg-emerald-600 text-xs px-3 py-2 rounded font-bold">
           Ir para Tela de Pedidos
         </a>
+        <a href="excluidos.html" class="bg-amber-600 hover:bg-amber-500 text-xs px-3 py-2 rounded font-bold">
+          🗑️ Pedidos Excluídos (Desfazer)
+        </a>
         <button onclick="alterarMinhaSenhaMaster()" class="bg-slate-700 hover:bg-slate-600 text-xs px-3 py-2 rounded font-semibold">
           Alterar Senha
         </button>
@@ -1276,7 +1279,33 @@
     }
 
     async function recusarEDeletarPedido(pedidoId) {
-      if (!confirm('Ao recusar este pedido, ele será DELETADO definitivamente do sistema. Confirmar?')) return;
+      if (!confirm('Ao recusar este pedido, ele será removido da lista e enviado para a Lixeira (Pedidos Excluídos). Confirmar?')) return;
+
+      const pedido = listaPedidos.find(p => p.id == pedidoId);
+      if (pedido) {
+        // 1. Grava cópia do pedido na lixeira
+        await supabaseClient.from('pedidos_excluidos').upsert([{
+          id: pedido.id,
+          igreja_id: pedido.igreja_id,
+          responsavel: pedido.responsavel,
+          status: pedido.status,
+          setor: pedido.setor || 'SETOR 03',
+          data_pedido: pedido.data_pedido
+        }]);
+
+        // 2. Grava cópia dos itens na lixeira
+        if (pedido.itens && pedido.itens.length > 0) {
+          const itensBackup = pedido.itens.map(i => ({
+            pedido_id: pedido.id,
+            produto_id: i.produto_id,
+            quantidade: i.quantidade,
+            preco_unitario: i.preco_unitario
+          }));
+          await supabaseClient.from('pedido_itens_excluidos').insert(itensBackup);
+        }
+      }
+
+      // 3. Deleta da lista principal
       await supabaseClient.from('pedidos').delete().eq('id', pedidoId);
       atualizarTudo();
     }
