@@ -602,6 +602,45 @@
         </div>
       </div>
     </section>
+    <!-- MODAL PARA EDITAR ITEM DO PEDIDO (TROCAR PRODUTO, QTD E PREÇO) -->
+  <div id="modal-editar-item" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 class="font-bold text-slate-800 uppercase text-sm">Editar Item do Pedido</h3>
+        <button type="button" onclick="fecharModalEditarItem()" class="text-slate-400 hover:text-slate-700 font-bold text-lg">✕</button>
+      </div>
+
+      <input type="hidden" id="edit-item-id" />
+      <input type="hidden" id="edit-item-pedido-id" />
+      <input type="hidden" id="edit-item-prod-original" />
+      <input type="hidden" id="edit-item-qtd-original" />
+
+      <div>
+        <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Produto</label>
+        <select id="edit-item-produto" onchange="aoTrocarProdutoNoModal()" class="w-full border rounded p-2 text-sm bg-white"></select>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Quantidade</label>
+          <input type="number" id="edit-item-qtd" min="1" class="w-full border rounded p-2 text-sm font-bold" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Preço Unit. (R$)</label>
+          <input type="number" step="0.01" id="edit-item-preco" class="w-full border rounded p-2 text-sm" />
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-3 border-t">
+        <button type="button" onclick="fecharModalEditarItem()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded text-xs font-bold">
+          Cancelar
+        </button>
+        <button type="button" onclick="salvarEdicaoItemPedido()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-xs font-bold">
+          Salvar Alterações
+        </button>
+      </div>
+    </div>
+  </div>
 
   </main>
 
@@ -1406,73 +1445,77 @@
       }).join('');
     }
 
-    async function editarItemDoPedido(pedidoId, itemId, produtoId, qtdAtual, precoAtual, nomeProduto) {
-      const novaQtdStr = prompt(`Alterar QUANTIDADE de "${nomeProduto}":`, qtdAtual);
-      if (novaQtdStr === null) return;
-      const novaQtd = parseInt(novaQtdStr);
-      if (isNaN(novaQtd) || novaQtd <= 0) return alert('Quantidade inválida!');
+    function editarItemDoPedido(pedidoId, itemId, produtoId, qtdAtual, precoAtual, nomeProduto) {
+      document.getElementById('edit-item-id').value = itemId;
+      document.getElementById('edit-item-pedido-id').value = pedidoId;
+      document.getElementById('edit-item-prod-original').value = produtoId;
+      document.getElementById('edit-item-qtd-original').value = qtdAtual;
 
-      const novoPrecoStr = prompt(`Alterar PREÇO UNITÁRIO (R$) de "${nomeProduto}":`, precoAtual);
-      if (novoPrecoStr === null) return;
-      const novoPreco = parseFloat(novoPrecoStr.replace(',', '.'));
-      if (isNaN(novoPreco) || novoPreco < 0) return alert('Preço inválido!');
+      const sel = document.getElementById('edit-item-produto');
+      sel.innerHTML = catalogoProdutos.map(p => {
+        const selected = (p.id == produtoId) ? 'selected' : '';
+        return `<option value="${p.id}" ${selected}>${p.nome} [${p.categoria || 'QUIMICOS'}]</option>`;
+      }).join('');
 
-      const prod = catalogoProdutos.find(p => p.id == produtoId);
+      document.getElementById('edit-item-qtd').value = qtdAtual;
+      document.getElementById('edit-item-preco').value = precoAtual;
+      document.getElementById('modal-editar-item').classList.remove('hidden');
+    }
+
+    function fecharModalEditarItem() {
+      document.getElementById('modal-editar-item').classList.add('hidden');
+    }
+
+    function aoTrocarProdutoNoModal() {
+      const novoProdId = document.getElementById('edit-item-produto').value;
+      const prod = catalogoProdutos.find(p => p.id == novoProdId);
+      if (prod) {
+        document.getElementById('edit-item-preco').value = prod.preco_padrao || 0;
+      }
+    }
+
+    async function salvarEdicaoItemPedido() {
+      const itemId = document.getElementById('edit-item-id').value;
+      const pedidoId = document.getElementById('edit-item-pedido-id').value;
+      const prodOriginalId = document.getElementById('edit-item-prod-original').value;
+      const qtdOriginal = parseInt(document.getElementById('edit-item-qtd-original').value) || 0;
+
+      const novoProdId = document.getElementById('edit-item-produto').value;
+      const novaQtd = parseInt(document.getElementById('edit-item-qtd').value);
+      const novoPreco = parseFloat(document.getElementById('edit-item-preco').value);
+
+      if (!novoProdId || isNaN(novaQtd) || novaQtd <= 0 || isNaN(novoPreco) || novoPreco < 0) {
+        return alert('Preencha produto, quantidade e preço corretamente!');
+      }
+
+      // Valida estoque caso o novo produto seja estocável
+      const prod = catalogoProdutos.find(p => p.id == novoProdId);
       if (!prod?.sob_demanda) {
-        const regSaldo = saldosAtuais.find(s => s.produto_id == produtoId);
+        const regSaldo = saldosAtuais.find(s => s.produto_id == novoProdId);
         const pedido = listaPedidos.find(p => p.id == pedidoId);
-        const jaAbatido = (pedido && ['aprovado', 'entregue'].includes(pedido.status)) ? qtdAtual : 0;
-        const disponivel = (regSaldo ? Number(regSaldo.saldo_atual) : 0) + jaAbatido;
+        const pedidoJaAbatido = pedido && ['aprovado', 'entregue'].includes(pedido.status);
+        const creditoOriginal = (pedidoJaAbatido && novoProdId == prodOriginalId) ? qtdOriginal : 0;
+        const disponivel = (regSaldo ? Number(regSaldo.saldo_atual) : 0) + creditoOriginal;
 
         if (novaQtd > disponivel) {
-          return alert(`ESTOQUE INSUFICIENTE!\nO máximo disponível em estoque para este item é ${disponivel} un.`);
+          return alert(`ESTOQUE INSUFICIENTE!\nO máximo disponível para "${prod.nome}" é ${disponivel} un.`);
         }
       }
 
       const { error } = await supabaseClient
         .from('pedido_itens')
-        .update({ quantidade: novaQtd, preco_unitario: novoPreco })
+        .update({
+          produto_id: novoProdId,
+          quantidade: novaQtd,
+          preco_unitario: novoPreco
+        })
         .eq('id', itemId);
 
-      if (error) return alert('Erro ao atualizar item: ' + error.message);
+      if (error) return alert('Erro ao salvar: ' + error.message);
 
-      alert('Item atualizado com sucesso!');
+      fecharModalEditarItem();
       await atualizarTudo();
     }
-
-    async function removerItemDoPedido(pedidoId, itemId, nomeProduto) {
-      if (!confirm(`Deseja remover o item "${nomeProduto}" deste pedido?`)) return;
-      await supabaseClient.from('pedido_itens').delete().eq('id', itemId);
-      await atualizarTudo();
-    }
-
-    async function aprovarEImprimirPedido(pedidoId, statusAtual) {
-      const ok = await mudarStatusPedido(pedidoId, 'aprovado', statusAtual);
-      if (ok !== false) imprimirFormularioIndividual(pedidoId);
-    }
-
-    async function mudarStatusPedido(pedidoId, novoStatus, statusAtual) {
-      const pedido = listaPedidos.find(p => p.id == pedidoId);
-      if (!pedido) return false;
-
-      if (statusAtual === 'pendente' && (novoStatus === 'aprovado' || novoStatus === 'entregue')) {
-        for (const item of pedido.itens) {
-          if (!item.sob_demanda) {
-            const regSaldo = saldosAtuais.find(s => s.produto_id == item.produto_id);
-            const disponivel = regSaldo ? Number(regSaldo.saldo_atual) : 0;
-            if (disponivel < item.quantidade) {
-              alert(`ESTOQUE INSUFICIENTE PARA APROVAR!\n\nProduto: ${item.produto_nome}\nSolicitado: ${item.quantidade}\nDisponível: ${disponivel}`);
-              return false;
-            }
-          }
-        }
-      }
-
-      await supabaseClient.from('pedidos').update({ status: novoStatus }).eq('id', pedidoId);
-      await atualizarTudo();
-      return true;
-    }
-
     async function recusarEDeletarPedido(pedidoId) {
       if (!confirm('Ao recusar este pedido, ele será removido da lista e enviado para a Lixeira (Pedidos Excluídos). Confirmar?')) return;
 
